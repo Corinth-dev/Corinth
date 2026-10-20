@@ -48,6 +48,13 @@ dotnet run -c Release --project benchmarks/Ccf.Benchmarks
 # TypeScript
 cd js && npm install && npm test
 npm run build
+
+# Golden-vector conformance tests (.NET: part of the default run; JS: excluded until phase 3 makes them pass)
+cd dotnet && dotnet test --filter "Category=Conformance"
+cd js && npm run test:conformance
+
+# Decoder fuzzing: a 4-second smoke run is part of `dotnet test`; set the duration for a longer run
+cd dotnet && CCF_FUZZ_SECONDS=600 dotnet test -c Release --filter "Category=Fuzz" --logger "console;verbosity=detailed"
 ```
 
 Update this section if you add commands.
