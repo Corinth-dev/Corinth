@@ -120,6 +120,8 @@ TypeScript
 
 **Exit:** both clients decode every vector identically; end-to-end test from the TS client against the sample API passes.
 
+_TypeScript decoder fuzz (11:15–11:30 UTC, Node 22, seed 20261020): 8,067,241 mutated payloads, 223,366 decoded, all others raised only `CcfFormatError`; slowest decode 46.6 ms; no other error._
+
 _Exit check passed (2026-10-20): .NET and TypeScript decoders both pass all 15 vectors (decode and errors) against the same `manifest.json`; the .NET client and the TS client decode the sample API's responses to exactly the vectors' expected values (`npm run test:e2e` runs the TS client against the real .NET sample: 7 tests). Tests: .NET client 45 per framework; TypeScript 254 (client) + 28 (typegen) in Node 22 and, locally via `npx node@20`, in Node 20.20; 5 browser tests in Chromium._
 
 ## Phase 4 — Benchmarks (go / no-go)
