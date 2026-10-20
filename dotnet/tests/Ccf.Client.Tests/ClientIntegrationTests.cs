@@ -258,7 +258,7 @@ public class ClientIntegrationTests : IClassFixture<SampleApiFixture>
     public async Task A_corrupted_ccf_payload_is_repeated_once_as_json(string corruption)
     {
         var (http, handler) = _api.CreateClient();
-        var messages = new List<string>();
+        var logger = new CapturingLogger<CcfClient>();
         handler.Intercept = (request, response) =>
         {
             if (!IsApi(request) || response.Content.Headers.ContentType?.MediaType != "application/vnd.ccf")
@@ -275,7 +275,7 @@ public class ClientIntegrationTests : IClassFixture<SampleApiFixture>
                 _ => Array.Empty<byte>(),
             });
         };
-        var client = new CcfClient(http, new CcfClientOptions { JsonSerializerOptions = Json, Log = (m, _) => messages.Add(m) });
+        var client = new CcfClient(http, new CcfClientOptions { JsonSerializerOptions = Json }, logger);
 
         var products = await client.GetAsync<List<Product>>("/products");
 
@@ -285,8 +285,9 @@ public class ClientIntegrationTests : IClassFixture<SampleApiFixture>
         Assert.Equal(2, api.Length);
         Assert.Contains("vnd.ccf", api[0].Accept);
         Assert.Equal("application/json", api[1].Accept);
-        Assert.Single(messages);
-        Assert.Contains("repeating the request as JSON", messages[0]);
+        var warning = Assert.Single(logger.Entries, e => e.Level == Microsoft.Extensions.Logging.LogLevel.Warning);
+        Assert.Contains("repeating the request as JSON", warning.Message);
+        Assert.IsAssignableFrom<CcfFormatException>(warning.Exception);
     }
 
     [Theory]

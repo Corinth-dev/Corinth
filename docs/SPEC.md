@@ -424,3 +424,4 @@ These rules resolve points the sections above leave open. None of them changes t
 5. **Dictionary blocks.** Decoders validate structure only (k ≤ 65,536, every index < k), not the encoder rule of §8.1. k = 0 with p = 0 is valid; k = 0 with p > 0 fails with `IndexOutOfRange` on the first index.
 6. **Row limit.** The row limit of §9 applies to every table separately, including list child tables. It is configurable on both sides; the default stays 100,000.
 7. **Float comparison in expected files.** Floats in `*.expected.json` are compared numerically (parsed double equality, with −0.0 distinct from 0.0), not as text.
+8. **Datetime range.** Decoders MAY reject datetime values outside the platform's representable range with `ValueOutOfRange`; every platform must accept at least 0001-01-01 to 9999-12-31 UTC.

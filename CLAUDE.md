@@ -52,9 +52,11 @@ npm run build
 # Run the sample API (JSON by default; try `curl -H 'Accept: application/vnd.ccf; features=d' http://localhost:5000/products`)
 cd dotnet && dotnet run --project samples/Ccf.SampleApi
 
-# TypeScript: real Chromium (needs `npx playwright-core install chromium` once) and the .NET sample API
+# TypeScript: real Chromium (needs `npx playwright-core install chromium` once)
 cd js && npm run test:browser
-cd js && npm run test:e2e
+# TypeScript client against the real .NET sample API (needs the .NET SDK; builds and starts the sample itself).
+# The matching CI job `js-e2e` is required on pull requests (via the aggregate `required` check).
+cd js && npm run build && npm run test:e2e
 # Generate TypeScript interfaces from a schema
 cd js && npm run build && node packages/typegen/dist/cli.js ../test-vectors/schema-Product.json
 

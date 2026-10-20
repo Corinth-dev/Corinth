@@ -32,7 +32,4 @@ public sealed class CcfClientOptions
     /// <c>HEAD</c> are repeated; return <c>true</c> for requests you know are idempotent.
     /// </summary>
     public Func<HttpRequestMessage, bool>? IsIdempotent { get; set; }
-
-    /// <summary>Receives a message when CCF failed and the request is repeated as JSON (or the failure surfaces).</summary>
-    public Action<string, Exception?>? Log { get; set; }
 }

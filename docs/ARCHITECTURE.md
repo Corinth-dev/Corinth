@@ -37,7 +37,7 @@ flowchart LR
 | --- | --- | --- |
 | `Ccf.Core` (.NET) | Schema model, canonicalizer, hasher, schema builder, encoder, decoder, limits, errors | Nothing outside the BCL |
 | `Ccf.AspNetCore` (.NET) | `AddCcf`, output formatter, `CcfResults`, schema endpoint, options | `Ccf.Core`, ASP.NET Core |
-| `Ccf.Client` (.NET) | `HttpClient` extensions, schema cache, JSON fallback | `Ccf.Core`, `System.Net.Http.Json` |
+| `Ccf.Client` (.NET) | `HttpClient` extensions, schema cache, JSON fallback | `Ccf.Core`, `System.Net.Http.Json`, `Microsoft.Extensions.Logging.Abstractions` |
 | `@ccf/client` (npm) | Decoder, schema cache, `fetch` wrapper, TS type generator CLI | None at runtime |
 
 ## 3. Server: ASP.NET Core integration
@@ -161,7 +161,7 @@ If any reachable member is unsupported, the whole response type is unsupported a
 
 - `CcfClient(HttpClient, CcfClientOptions?)` holds the schema cache and the single-flight map; `client.GetAsync<T>(uri, ct)` and `client.SendAsync<T>(HttpRequestMessage, ct)` (retry only for GET/HEAD or when `CcfClientOptions.IsIdempotent` says so; the request is captured first so it can be sent again).
 - `HttpClient.GetFromCcfAsync<T>(string uri, CancellationToken)` mirrors `GetFromJsonAsync<T>` and uses one default `CcfClient` per `HttpClient`; create a `CcfClient` for custom options.
-- `CcfClientOptions`: `Features`, `SchemaPathPrefix`, `SchemaCache` (`ICcfSchemaCache`, async `GetAsync`/`SetAsync`, default `InMemoryCcfSchemaCache`), `JsonSerializerOptions` (JSON path and the naming policy used to match properties; default web defaults), `Limits`, `IsIdempotent`, `Log` (a callback: the package takes no logging dependency).
+- `CcfClientOptions`: `Features`, `SchemaPathPrefix`, `SchemaCache` (`ICcfSchemaCache`, async `GetAsync`/`SetAsync`, default `InMemoryCcfSchemaCache`), `JsonSerializerOptions` (JSON path and the naming policy used to match properties; default web defaults), `Limits`, `IsIdempotent`. Logging goes through an optional `ILogger<CcfClient>` constructor argument (DI when registered, `NullLogger` otherwise).
 - Failures to obtain a schema are `CcfSchemaFetchException` (client-side, not a format error); an error status is `HttpRequestException`.
 - Decodes into `T` by matching schema field names to properties with the same naming rules as the server (§5.2). Schema fields with no matching property are skipped (block length); properties with no matching field keep their default. Matching is by exact JSON name first, then case-insensitively. Narrowing into a smaller CLR type is range-checked (`ValueOutOfRange`). A CLR type that cannot receive the schema (incompatible property type, abstract type, several rows into a single object) raises `InvalidOperationException`: a usage error, not a format error. Datetimes outside the .NET `DateTime` range (years 1–9999) are rejected by the .NET decoder with `ValueOutOfRange`.
 - Decimals decode exactly to `decimal`; datetimes to `DateTimeOffset` (offset 0) or `DateTime` (Kind Utc).

@@ -4,6 +4,8 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Ccf.Client;
 
@@ -19,12 +21,21 @@ public sealed class CcfClient
     private readonly CcfSchemaOptions _schemaOptions;
     private readonly ConcurrentDictionary<string, Task<CcfSchema>> _inflight = new(StringComparer.Ordinal);
     private readonly string _accept;
+    private readonly ILogger _logger;
 
     /// <summary>Creates a client over <paramref name="httpClient"/>, which keeps its handlers, headers and timeout.</summary>
-    public CcfClient(HttpClient httpClient, CcfClientOptions? options = null)
+    /// <param name="httpClient">The HTTP client; its handlers, default headers, base address and timeout apply.</param>
+    /// <param name="options">Client options; defaults are used when <c>null</c>.</param>
+    /// <param name="logger">
+    /// Receives a warning whenever a CCF response failed and the request is repeated as JSON (or the failure
+    /// surfaces). Dependency injection supplies it when this class is constructed by the container (for example
+    /// <c>AddHttpClient&lt;CcfClient&gt;()</c>); otherwise nothing is logged.
+    /// </param>
+    public CcfClient(HttpClient httpClient, CcfClientOptions? options = null, ILogger<CcfClient>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(httpClient);
         _http = httpClient;
+        _logger = logger ?? NullLogger<CcfClient>.Instance;
         _options = options ?? new CcfClientOptions();
         SchemaCache = _options.SchemaCache ?? new InMemoryCcfSchemaCache();
         _schemaOptions = new CcfSchemaOptions { PropertyNamingPolicy = _options.JsonSerializerOptions.PropertyNamingPolicy };
@@ -81,11 +92,11 @@ public sealed class CcfClient
         {
             if (retry is null)
             {
-                _options.Log?.Invoke($"CCF response from {request.RequestUri} failed ({e.GetType().Name}: {e.Message}); the request is not safe to repeat, so the error surfaces.", e);
+                _logger.LogWarning(e, "CCF response from {Uri} failed ({Error}); the request is not safe to repeat, so the error surfaces.", request.RequestUri, e.Message);
                 throw;
             }
 
-            _options.Log?.Invoke($"CCF response from {request.RequestUri} failed ({e.GetType().Name}: {e.Message}); repeating the request as JSON.", e);
+            _logger.LogWarning(e, "CCF response from {Uri} failed ({Error}); repeating the request as JSON.", request.RequestUri, e.Message);
             using var retryRequest = retry.CreateRequest();
             retryRequest.Headers.Remove("Accept");
             retryRequest.Headers.TryAddWithoutValidation("Accept", "application/json");
@@ -189,6 +200,7 @@ public sealed class CcfClient
                 var text = await response.Content.ReadAsStringAsync(CancellationToken.None).ConfigureAwait(false);
                 var schema = Verify(id, text);
                 await SchemaCache.SetAsync(schema, CancellationToken.None).ConfigureAwait(false);
+                _logger.LogDebug("Fetched and verified CCF schema {SchemaId} from {Uri}", id, schemaUri);
                 return schema;
             }
         }

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Ccf.Client.Tests;
@@ -67,15 +68,17 @@ public class ClientStubTests
     public async Task Unsafe_methods_are_not_repeated_and_the_ccf_error_surfaces(string method)
     {
         var handler = new StubHandler(r => Server(r, Corrupt(ProductsPayload), ProductSchema));
-        var messages = new List<string>();
-        var client = new CcfClient(Http(handler), new CcfClientOptions { Log = (m, _) => messages.Add(m) });
+        var logger = new CapturingLogger<CcfClient>();
+        var client = new CcfClient(Http(handler), logger: logger);
         var request = new HttpRequestMessage(new HttpMethod(method), "/products") { Content = new StringContent("{}") };
 
         var ex = await Assert.ThrowsAsync<CcfFormatException>(() => client.SendAsync<List<Product>>(request));
 
         Assert.Equal(CcfErrorCode.Truncated, ex.Code);
         Assert.Single(handler.Seen, s => !IsSchema(s.Request));
-        Assert.Contains("not safe to repeat", Assert.Single(messages));
+        var warning = Assert.Single(logger.Entries, e => e.Level == Microsoft.Extensions.Logging.LogLevel.Warning);
+        Assert.Contains("not safe to repeat", warning.Message);
+        Assert.IsType<CcfFormatException>(warning.Exception);
     }
 
     [Fact]
@@ -253,5 +256,51 @@ public class ClientStubTests
 
         Assert.Equal("Steel Monitor", products![0].Name);
         Assert.Equal(1001, products[0].Id);
+    }
+}
+
+public class ClientLoggingTests
+{
+    [Fact]
+    public async Task The_container_supplies_the_logger_when_it_constructs_the_client()
+    {
+        var logger = new CapturingLogger<CcfClient>();
+        var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
+        services.AddSingleton<Microsoft.Extensions.Logging.ILogger<CcfClient>>(logger);
+        using var provider = services.BuildServiceProvider();
+        var handler = new StubHandler(r => Task.FromResult(r.RequestUri!.AbsolutePath.Contains("/ccf/schemas/")
+            ? new HttpResponseMessage(HttpStatusCode.NotFound)
+            : r.Headers.Accept.ToString().Contains("vnd.ccf") ? StubHandler.Ccf(Vectors.Bytes("v01-products-plain")) : StubHandler.Json("[]")));
+
+        var client = Microsoft.Extensions.DependencyInjection.ActivatorUtilities.CreateInstance<CcfClient>(
+            provider, new HttpClient(handler) { BaseAddress = new Uri("https://api.test") });
+        await client.GetAsync<List<ClientStubTests.Product>>("/products");
+
+        Assert.Contains(logger.Entries, e => e.Message.Contains("repeating the request as JSON"));
+    }
+
+    [Fact]
+    public async Task Without_a_container_nothing_is_logged_and_nothing_fails()
+    {
+        var handler = new StubHandler(r => Task.FromResult(r.RequestUri!.AbsolutePath.Contains("/ccf/schemas/")
+            ? new HttpResponseMessage(HttpStatusCode.NotFound)
+            : r.Headers.Accept.ToString().Contains("vnd.ccf") ? StubHandler.Ccf(Vectors.Bytes("v01-products-plain")) : StubHandler.Json("[]")));
+        var client = new CcfClient(new HttpClient(handler) { BaseAddress = new Uri("https://api.test") });
+
+        Assert.Empty((await client.GetAsync<List<ClientStubTests.Product>>("/products"))!);
+    }
+
+    [Fact]
+    public async Task Debug_output_notes_a_fetched_schema()
+    {
+        var logger = new CapturingLogger<CcfClient>();
+        var handler = new StubHandler(r => Task.FromResult(r.RequestUri!.AbsolutePath.Contains("/ccf/schemas/")
+            ? StubHandler.Json(Vectors.SchemaText("schema-Product.json"))
+            : StubHandler.Ccf(Vectors.Bytes("v01-products-plain"))));
+        var client = new CcfClient(new HttpClient(handler) { BaseAddress = new Uri("https://api.test") }, logger: logger);
+
+        await client.GetAsync<List<ClientStubTests.Product>>("/products");
+
+        Assert.Contains(logger.Entries, e => e.Level == Microsoft.Extensions.Logging.LogLevel.Debug && e.Message.Contains("c33a3ed0"));
     }
 }
