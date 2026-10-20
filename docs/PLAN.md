@@ -80,6 +80,8 @@ Hardening
 
 **Exit:** all 15 vectors pass both directions on net8.0 and net10.0; fuzz run of 1 hour clean.
 
+_Exit check passed (2026-10-20): all 15 vectors pass both directions on net8.0 and net10.0. Fuzz run of 1 hour (08:50–09:50 UTC, net10.0 Release, 3 threads, seed 20261020): 728,529,220 mutated payloads, 20,191,430 decoded successfully, the rest raised only `CcfFormatException` (all 16 codes seen except none missing from the histogram); no other exception, no hang (slowest decode 404 ms), peak allocation 148,744 bytes for any single decode._
+
 ## Phase 2 — `Ccf.AspNetCore`
 
 - [ ] `CcfOptions` (DictionaryThreshold, DefaultDecimalScale, Limits, SchemaPathPrefix, AllowQueryOverride) bound from configuration section `Ccf`.
