@@ -7,4 +7,7 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="..\Ccf.Core\Ccf.Core.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Ccf.AspNetCore.Tests" />
+  </ItemGroup>
 </Project>

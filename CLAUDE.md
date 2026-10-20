@@ -49,6 +49,9 @@ dotnet run -c Release --project benchmarks/Ccf.Benchmarks
 cd js && npm install && npm test
 npm run build
 
+# Run the sample API (JSON by default; try `curl -H 'Accept: application/vnd.ccf; features=d' http://localhost:5000/products`)
+cd dotnet && dotnet run --project samples/Ccf.SampleApi
+
 # Golden-vector conformance tests (.NET: part of the default run; JS: excluded until phase 3 makes them pass)
 cd dotnet && dotnet test --filter "Category=Conformance"
 cd js && npm run test:conformance

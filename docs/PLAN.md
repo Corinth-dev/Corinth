@@ -84,19 +84,21 @@ _Exit check passed (2026-10-20): all 15 vectors pass both directions on net8.0 a
 
 ## Phase 2 — `Ccf.AspNetCore`
 
-- [ ] `CcfOptions` (DictionaryThreshold, DefaultDecimalScale, Limits, SchemaPathPrefix, AllowQueryOverride) bound from configuration section `Ccf`.
-- [ ] `ISchemaRegistry` (lazy registration, `Register<T>()`, id collision check, thread-safe).
-- [ ] `AddCcf()` registrations per ARCHITECTURE §3.1.
-- [ ] `CcfOutputFormatter` per ARCHITECTURE §3.2, including `features` parsing (quoted and bare), Content-Type echo, `Vary: Accept`, JSON fallback on encode failure.
-- [ ] Confirm and test how `MediaType` matching handles the `features` parameter.
-- [ ] `CcfResults.Ok<T>()` for minimal APIs.
-- [ ] `MapCcfSchemas()` with immutable caching and 404.
-- [ ] Logging and the `Ccf` meter (ARCHITECTURE §3.5).
-- [ ] Development-only `?ccf=d` override (off unless `AllowQueryOverride` and the environment is Development).
-- [ ] `samples/Ccf.SampleApi`: `/products` returning the 500 sample rows (from `test-vectors/v01-products-plain.expected.json`), `/orders`, `/products/{id}`, plus one unsupported type to show fallback.
-- [ ] Integration tests with `WebApplicationFactory`: JSON by default; plain CCF for `Accept: application/vnd.ccf` (bytes equal `v01`); dictionary CCF for `features=d` (bytes equal `v02`); single object (`v05`); fallback for unsupported type; schema endpoint 200/404 and headers.
+- [x] `CcfOptions` (DictionaryThreshold, DefaultDecimalScale, Limits, SchemaPathPrefix, AllowQueryOverride) bound from configuration section `Ccf`.
+- [x] `ISchemaRegistry` (lazy registration, `Register<T>()`, id collision check, thread-safe).
+- [x] `AddCcf()` registrations per ARCHITECTURE §3.1.
+- [x] `CcfOutputFormatter` per ARCHITECTURE §3.2, including `features` parsing (quoted and bare), Content-Type echo, `Vary: Accept`, JSON fallback on encode failure.
+- [x] Confirm and test how `MediaType` matching handles the `features` parameter. _Result: MVC offers the Accept range with its parameters as `context.ContentType`, and the stock `OutputFormatter.CanWriteResult` (`MediaTypeHeaderValue.IsSubsetOf`) rejects `application/vnd.ccf` against `application/vnd.ccf; features=d`, so `CcfOutputFormatter` compares type/subtype itself and reads `features` from the request. See `CcfMediaTypeMatchingTests`._
+- [x] `CcfResults.Ok<T>()` for minimal APIs.
+- [x] `MapCcfSchemas()` with immutable caching and 404.
+- [x] Logging and the `Ccf` meter (ARCHITECTURE §3.5).
+- [x] Development-only `?ccf=d` override (off unless `AllowQueryOverride` and the environment is Development).
+- [x] `samples/Ccf.SampleApi`: `/products` returning the 500 sample rows (from `test-vectors/v01-products-plain.expected.json`), `/orders`, `/products/{id}`, plus one unsupported type to show fallback.
+- [x] Integration tests (in-process Kestrel host, see Open questions: `WebApplicationFactory` needs a new package): JSON by default; plain CCF for `Accept: application/vnd.ccf` (bytes equal `v01`); dictionary CCF for `features=d` (bytes equal `v02`); single object (`v05`); fallback for unsupported type; schema endpoint 200/404 and headers.
 
 **Exit:** the sample API serves JSON, plain CCF and dictionary CCF from one endpoint, byte-identical to the vectors.
+
+_Exit check passed (2026-10-20): `/products` serves JSON, plain CCF (bytes equal `v01`) and dictionary CCF (bytes equal `v02`); `/products/1001` equals `v05`, `/products/empty` `v06`, `/orders` `v04`, `/all-types` `v03`; minimal APIs return the same bytes. 140 AspNetCore tests pass on net8.0 and net10.0._
 
 ## Phase 3 — `Ccf.Client` (.NET) and `@ccf/client` (TypeScript)
 
@@ -144,6 +146,16 @@ TypeScript
 ## Open questions
 
 _None open._ Ambiguities found before phase 0 were resolved by the project owner and recorded as SPEC §14 (clarifications v1.0.1). Add new questions here as they come up, with the phase and the SPEC section they concern.
+
+### Decisions taken in phase 2 (please confirm or overrule)
+
+1. **Test host without a new package.** The plan says `WebApplicationFactory`, which lives in `Microsoft.AspNetCore.Mvc.Testing` (a new NuGet dependency, not on the pre-approved list). The integration tests instead start the sample app in-process on a real Kestrel socket (`SampleApp.Create` + port 0) and use `HttpClient`. If you prefer `WebApplicationFactory`, approve the package and the tests can be moved over mechanically.
+2. **Accept handling mirrors MVC.** CCF is chosen only when `application/vnd.ccf` is the first servable range after ordering by quality, then specificity, then header position. An `Accept` header containing `*/*` is "no preference" (MVC ignores it unless `MvcOptions.RespectBrowserAcceptHeader` is true), so `application/vnd.ccf, */*;q=0.1` yields JSON; `q=0` means not acceptable. Minimal APIs (`CcfResults`) apply the same rules, so both paths agree.
+3. **`Vary: Accept` scope.** Added to every response whose value type has a CCF schema (JSON ones included), via a result filter for MVC and inside `CcfResults.Ok`. Endpoints returning unsupported types or scalars get no `Vary` because they cannot serve CCF.
+4. **Field naming.** Schemas use MVC's `JsonOptions.JsonSerializerOptions.PropertyNamingPolicy`. Minimal APIs' JSON fallback uses `Http.Json.JsonOptions`; if an app configures those two differently, JSON and CCF names can differ.
+5. **Runtime collection types.** A response whose runtime type is not a supported collection (LINQ iterator, `HashSet<T>`) is served through `IEnumerable<T>`.
+6. **`.WithCcf()` endpoint filter** (marked MAY in ARCHITECTURE §3.3) is not implemented.
+7. **Schema endpoint 404s** carry no cache header, because the id may be registered later.
 
 ### Decisions taken in phase 1 that go beyond SPEC §14 (please confirm or overrule)
 

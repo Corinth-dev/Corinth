@@ -76,7 +76,7 @@ It is not a hosted/background service: nothing runs unless a request asks for CC
 4. On `CcfEncodeException`: log a warning with the schema id and reason, then write the response as JSON with the app's configured `JsonSerializerOptions` (headers have not been sent yet).
 5. On success: set `Content-Type` per SPEC §2.3 from the flags actually produced, add `Vary: Accept`, set `Content-Length`, copy the buffer to the body.
 
-Verify early (phase 2) how ASP.NET Core's `MediaType` matching treats the `features` parameter on the `Accept` header and on the response, and cover it with tests.
+Verified in phase 2 (`CcfMediaTypeMatchingTests`): MVC passes the Accept range, parameters included, as `context.ContentType`, but the stock `OutputFormatter.CanWriteResult` only matches when the formatter's media type carries every parameter of that range, so `application/vnd.ccf` never matches `application/vnd.ccf; features=d`. `CcfOutputFormatter` therefore overrides `CanWriteResult`: it compares type/subtype only, requires that `CcfNegotiation.TryNegotiate` agrees (so `q=0` is honoured), reads `features` from the request, and sets the response `Content-Type` itself from the flags produced. It is registered after the built-in formatters and never claims a response without an explicit `application/vnd.ccf` offer, so wildcard and absent `Accept` headers stay JSON. MVC treats an `Accept` containing `*/*` as no preference (unless `RespectBrowserAcceptHeader`); `CcfResults` follows the same rules. The JSON fallback delegates to the first registered JSON `TextOutputFormatter`, and a result filter adds `Vary: Accept` to JSON responses of CCF-capable endpoints. The development override is an `IStartupFilter` middleware that rewrites `Accept`.
 
 ### 3.3 Minimal APIs
 

@@ -2,9 +2,11 @@
   <PropertyGroup>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
+    <RootNamespace>Ccf.AspNetCore.Tests</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Ccf.AspNetCore\Ccf.AspNetCore.csproj" />
+    <ProjectReference Include="..\..\samples\Ccf.SampleApi\Ccf.SampleApi.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
