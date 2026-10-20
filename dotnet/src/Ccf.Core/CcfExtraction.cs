@@ -97,7 +97,7 @@ internal static class CcfBinding
         return type switch
         {
             CcfType.Bool => u == typeof(bool),
-            CcfType.Int32 or CcfType.Int64 or CcfType.UInt32 or CcfType.UInt64 => IsIntegral(u),
+            CcfType.Int32 or CcfType.Int64 or CcfType.UInt32 or CcfType.UInt64 => IsIntegral(u) || (u.IsEnum && IsIntegral(Enum.GetUnderlyingType(u))),
             CcfType.Float64 => u == typeof(double) || u == typeof(float),
             CcfType.Decimal => u == typeof(decimal),
             CcfType.Enum => u.IsEnum,
@@ -171,7 +171,7 @@ internal sealed class TableExtractor<TRow>
             var field = fields[i];
             var member = Array.Find(members, m => m.Name == field.Name)
                 ?? throw new CcfEncodeException($"Schema field '{field.Name}' has no matching property on {typeof(TRow).Name}.");
-            extractors[i] = ExtractorFactory.Create<TRow>(field, row, Expression.Property(row, member.Property), member.ClrType, options);
+            extractors[i] = ExtractorFactory.Create<TRow>(field, row, Expression.Property(row, member.Property), member.ClrType, options, member.Property);
         }
 
         return new TableExtractor<TRow>(extractors);
@@ -181,7 +181,7 @@ internal sealed class TableExtractor<TRow>
 internal static class ExtractorFactory
 {
     public static FieldExtractor<TRow> Create<TRow>(
-        CcfField field, ParameterExpression row, Expression value, Type clr, CcfSchemaOptions options)
+        CcfField field, ParameterExpression row, Expression value, Type clr, CcfSchemaOptions options, PropertyInfo? property = null)
     {
         if (!CcfBinding.IsCompatible(field.Type, clr))
         {
@@ -190,6 +190,8 @@ internal static class ExtractorFactory
         }
 
         var u = CcfBinding.Underlying(clr);
+        // An enum behind an integer column (STJ writes it as a number) is read through its underlying type.
+        var iu = u.IsEnum && field.Type != CcfType.Enum ? Enum.GetUnderlyingType(u) : u;
         switch (field.Type)
         {
             case CcfType.Bool:
@@ -206,12 +208,12 @@ internal static class ExtractorFactory
                 var toMs = typeof(CcfConvert).GetMethod(nameof(CcfConvert.ToEpochMs), new[] { u })!;
                 return new LongExtractor<TRow>(field, Getter<TRow, long>(row, value, clr, e => Expression.Call(toMs, e)), null, null);
             case CcfType.Enum:
-                return new LongExtractor<TRow>(field, Getter<TRow, long>(row, value, clr, e => Expression.Convert(e, typeof(long))), null, EnumMap(field, u));
-            case CcfType.UInt64 when u == typeof(ulong):
-            case CcfType.Int32 when u == typeof(ulong):
-            case CcfType.Int64 when u == typeof(ulong):
-            case CcfType.UInt32 when u == typeof(ulong):
-                return new LongExtractor<TRow>(field, null, Getter<TRow, ulong>(row, value, clr, e => e), null);
+                return new LongExtractor<TRow>(field, Getter<TRow, long>(row, value, clr, e => Expression.Convert(e, typeof(long))), null, EnumMap(field, u, property, options));
+            case CcfType.UInt64 when iu == typeof(ulong):
+            case CcfType.Int32 when iu == typeof(ulong):
+            case CcfType.Int64 when iu == typeof(ulong):
+            case CcfType.UInt32 when iu == typeof(ulong):
+                return new LongExtractor<TRow>(field, null, Getter<TRow, ulong>(row, value, clr, e => Expression.Convert(e, typeof(ulong))), null);
             default: // integers
                 return new LongExtractor<TRow>(field, Getter<TRow, long>(row, value, clr, e => Expression.Convert(e, typeof(long))), null, null);
             case CcfType.Object:
@@ -241,10 +243,17 @@ internal static class ExtractorFactory
         return (FieldExtractor<TRow>)CcfBinding.CreateInstance(type, field, getter, options);
     }
 
-    private static Dictionary<long, int> EnumMap(CcfField field, Type enumType)
+    /// <summary>Numeric value → index into <c>field.Values</c>, from the names System.Text.Json writes for the enum.</summary>
+    private static Dictionary<long, int> EnumMap(CcfField field, Type enumType, PropertyInfo? property, CcfSchemaOptions options)
     {
+        var json = CcfEnumJson.Resolve(enumType, property, options.JsonSerializerOptions);
+        if (!json.IsString)
+        {
+            throw new CcfEncodeException($"Field '{field.Name}': {enumType.Name} is not written as strings by its JSON options, so it cannot go into an enum column.");
+        }
+
         var map = new Dictionary<long, int>();
-        foreach (var (name, info) in CcfTypeModel.EnumMembers(enumType))
+        foreach (var (name, value) in json.Members!)
         {
             var index = -1;
             for (var i = 0; i < field.Values!.Count; i++)
@@ -258,7 +267,7 @@ internal static class ExtractorFactory
 
             if (index >= 0)
             {
-                map.TryAdd(unchecked(Convert.ToInt64(info.GetRawConstantValue()!)), index);
+                map.TryAdd(value, index);
             }
         }
 

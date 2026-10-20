@@ -166,7 +166,7 @@ public class SchemaBuilderTests
 
     [Flags] private enum Perm { None = 0, Read = 1, Write = 2 }
 
-    private enum Plain { Zebra = 5, Apple = 1, Mango = 3 }
+    [JsonConverter(typeof(JsonStringEnumConverter))] private enum Plain { Zebra = 5, Apple = 1, Mango = 3 }
 
     private sealed class WithEnum { public Plain P { get; set; } }
 
@@ -175,6 +175,7 @@ public class SchemaBuilderTests
         Assert.Equal("""[{"name":"p","type":"enum","values":["Zebra","Apple","Mango"]}]""", Fields(Build<WithEnum>()));
 
 #if NET9_0_OR_GREATER
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     private enum Renamed
     {
         [JsonStringEnumMemberName("first_one")] A,
@@ -285,7 +286,9 @@ public class SchemaBuilderTests
     private sealed class Circle : Shape { public int R { get; set; } }
     private sealed class HasPolymorphic { public Shape? Value { get; set; } }
 
-    private sealed class HasFlags { public Perm Value { get; set; } }
+    [JsonConverter(typeof(JsonStringEnumConverter))] [Flags] private enum StrPerm { None = 0, Read = 1, Write = 2 }
+
+    private sealed class HasFlags { public StrPerm Value { get; set; } }
     private sealed class HasChar { public char Value { get; set; } }
     private sealed class HasBytes { public byte[] Value { get; set; } = Array.Empty<byte>(); }
     private sealed class HasTimeSpan { public TimeSpan Value { get; set; } }
@@ -395,7 +398,7 @@ public class SchemaBuilderTests
         Assert.Contains("HasObject.value", Reason(typeof(HasObject)));
         Assert.Contains("recursive", Reason(typeof(Recursive)), StringComparison.OrdinalIgnoreCase);
         Assert.Contains("a-b", Reason(typeof(BadName)));
-        Assert.Contains("Flags", Reason(typeof(HasFlags)), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Flags", Reason(typeof(HasFlags)), StringComparison.OrdinalIgnoreCase); // a flags enum written as strings
     }
 
     [Fact]

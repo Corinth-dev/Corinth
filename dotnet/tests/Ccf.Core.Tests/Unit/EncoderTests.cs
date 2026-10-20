@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Text.Json.Serialization;
 using Xunit;
 
 namespace Ccf.Core.Tests;
@@ -403,7 +404,7 @@ public class EncoderTests
         Fails(new Child(), CcfSchema.Parse("""{"name":"Child","fields":[{"name":"x","type":"list","fields":[{"name":"$value","type":"int32"}]}]}"""));
     }
 
-    public enum Mood { Happy, Sad, Unknown }
+    [JsonConverter(typeof(JsonStringEnumConverter))] public enum Mood { Happy, Sad, Unknown }
 
     public sealed class MoodRow { public Mood M { get; set; } }
 

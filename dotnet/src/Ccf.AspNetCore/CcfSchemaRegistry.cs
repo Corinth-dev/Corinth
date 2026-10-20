@@ -13,7 +13,7 @@ public sealed class CcfSchemaRegistry : ISchemaRegistry
 {
     private sealed record Entry(CcfSchema? Schema, string? Reason);
 
-    private readonly ConcurrentDictionary<(Type, JsonNamingPolicy?, int), Entry> _byKey = new();
+    private readonly ConcurrentDictionary<(Type, JsonNamingPolicy?, int, System.Text.Json.JsonSerializerOptions?), Entry> _byKey = new();
     private readonly ConcurrentDictionary<string, CcfSchema> _byId = new(StringComparer.Ordinal);
     private readonly object _registerLock = new();
     private readonly ILogger _logger;
@@ -30,11 +30,13 @@ public sealed class CcfSchemaRegistry : ISchemaRegistry
             new CcfSchemaOptions
             {
                 PropertyNamingPolicy = mvcJson.Value.JsonSerializerOptions.PropertyNamingPolicy,
+                JsonSerializerOptions = mvcJson.Value.JsonSerializerOptions,
                 DefaultDecimalScale = options.Value.DefaultDecimalScale,
             },
             new CcfSchemaOptions
             {
                 PropertyNamingPolicy = httpJson.Value.SerializerOptions.PropertyNamingPolicy,
+                JsonSerializerOptions = httpJson.Value.SerializerOptions,
                 DefaultDecimalScale = options.Value.DefaultDecimalScale,
             },
             loggerFactory.CreateLogger("Ccf"),
@@ -96,8 +98,8 @@ public sealed class CcfSchemaRegistry : ISchemaRegistry
         return entry.Schema ?? throw new InvalidOperationException($"{type} cannot be served as CCF: {entry.Reason}");
     }
 
-    private static (Type, JsonNamingPolicy?, int) KeyOf(Type type, CcfSchemaOptions options) =>
-        (type, options.PropertyNamingPolicy, options.DefaultDecimalScale);
+    private static (Type, JsonNamingPolicy?, int, System.Text.Json.JsonSerializerOptions?) KeyOf(Type type, CcfSchemaOptions options) =>
+        (type, options.PropertyNamingPolicy, options.DefaultDecimalScale, options.JsonSerializerOptions);
 
     private Entry Resolve(Type type, CcfSchemaOptions options)
     {

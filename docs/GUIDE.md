@@ -5,13 +5,12 @@ CCF is an optimisation, never a dependency. JSON remains the default; a client g
 ## 1. Before you start
 
 - Measure first. CCF pays off on tables whose columns repeat, are numeric or are small (`docs/BENCHMARKS.md`: dictionary-mode decode 2.3x–6.1x faster than System.Text.Json source-gen across the four benchmark sets, and 11%–13% of the raw JSON size on repetitive data). It does **not** help payloads dominated by long, mostly unique strings (`docs/ARCHITECTURE.md` §9.2): keep those endpoints on JSON.
-- Packages: `Ccf.AspNetCore` on the server (it brings `Ccf.Core`), `Ccf.Client` for .NET callers, `@skm/ccf-client` for browsers and Node 20+. Server targets `net8.0` and `net10.0`.
+- Packages (private feed): NuGet `SKM.Ccf.AspNetCore` on the server (it brings `SKM.Ccf.Core`), `SKM.Ccf.Client` for .NET callers, npm `@skm/ccf-client` for browsers and Node 20+ (and `@skm/ccf-typegen` for generated types). The assemblies and namespaces are still `Ccf.*`. Server targets `net8.0` and `net10.0`.
 
 ## 2. Enable it
 
 ```csharp
-builder.Services.AddControllers().AddJsonOptions(o =>
-    o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));   // see "Contract pitfalls"
+builder.Services.AddControllers();
 builder.Services.AddCcf();                 // options bind from the "Ccf" configuration section
 
 var app = builder.Build();
@@ -37,7 +36,7 @@ Rollout order we recommend: one read-mostly list endpoint with repetitive column
 
 The schema mirrors what System.Text.Json would emit (names, order, nullability), with these differences to check on each type (full table: `docs/ARCHITECTURE.md` §5):
 
-- **Enums are always sent as member names.** If your JSON options do not use `JsonStringEnumConverter`, JSON sends numbers and CCF sends names, so the two contracts differ. Add the converter (as above) or keep such endpoints on JSON.
+- **Enums mirror JSON.** An enum that your JSON options write as a string (`JsonStringEnumConverter` globally, or `[JsonConverter]` on the property or the enum type) is a CCF enum column with the same names, naming policy included. Any other enum is written as a number in JSON and is an integer column here (`int32` for the usual `int` enums), so the two contracts always agree. MVC and minimal APIs each follow their own JSON options. `[Flags]` enums written as strings, and enums with a custom converter, are JSON-only.
 - **Decimals have a fixed scale.** `[CcfDecimal(scale)]`, else `Ccf:DefaultDecimalScale` (2). A value with more fractional digits than the scale makes the whole response fall back to JSON (counted as an encode failure), so set the scale to what the data really has.
 - **Dates:** `DateTime`/`DateTimeOffset` become UTC datetimes with millisecond precision (sub-millisecond ticks are floored).
 - **Unsupported members make the whole type JSON-only:** `object`, dictionaries, `JsonElement`/`JsonNode`, polymorphic types, `[Flags]` enums, `char`, `byte[]`, `TimeSpan`, `DateOnly`/`TimeOnly`, recursive types, nesting deeper than 8, custom `JsonConverter`s on a member.
@@ -93,4 +92,4 @@ In code, `Limits` is an init-only object: `o.Limits = new CcfLimits { MaxRows = 
 | Always JSON although `Accept: application/vnd.ccf` is sent | Minimal API without `CcfResults.Ok`; `[Produces("application/json")]`; an unsupported type (check the debug log of category `Ccf`); a JSON range with higher `q` listed explicitly; the proxy strips `Accept`. |
 | `ccf.encode_failures` rising | Decimal with more digits than its scale, a null in a non-nullable column, a limit exceeded. The warning log names the schema id and reason. |
 | Client logs "repeating the request as JSON" | The payload failed to decode or the schema fetch failed (404 behind a load balancer: pre-register schemas; redirect to another origin; cache/proxy altering bytes). |
-| JSON and CCF values differ | Enum representation (section 4) or a naming-policy mismatch. |
+| JSON and CCF values differ | A naming-policy mismatch between the MVC and minimal-API options (check the startup warning), or a custom converter CCF does not know about (such types are JSON-only, so this should not happen: report it). |

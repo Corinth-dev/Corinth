@@ -149,7 +149,9 @@ internal static class CcfTypeModel
                     conditional = ignore.Condition != JsonIgnoreCondition.Never;
                 }
 
-                if (p.GetCustomAttribute<JsonConverterAttribute>() is not null)
+                // A converter on an enum property is judged by the schema builder (string-enum converters are mirrored).
+                var propertyType = Nullable.GetUnderlyingType(p.PropertyType) ?? p.PropertyType;
+                if (p.GetCustomAttribute<JsonConverterAttribute>() is not null && !propertyType.IsEnum)
                 {
                     throw new CcfUnsupportedTypeException($"{type.Name}.{p.Name} has a custom JsonConverter");
                 }

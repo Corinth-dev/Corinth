@@ -99,7 +99,7 @@ It is not a hosted/background service: nothing runs unless a request asks for CC
 ### 3.5 Observability
 
 - `ILogger` category `Ccf`: debug on schema registration, warning on fallback after an encode failure.
-- `System.Diagnostics.Metrics` meter `Ccf`: counters `ccf.responses` (tag `format` = ccf/json-fallback, `features`), `ccf.bytes_written`, `ccf.encode_failures`.
+- `System.Diagnostics.Metrics` meter `Ccf`: counters `ccf.responses` (tag `format` = `ccf` / `json` / `json-fallback`, tag `features`), `ccf.bytes_written`, `ccf.encode_failures`. `format=json` counts JSON responses of CCF-capable endpoints (the type has a schema: the client did not ask for CCF, or JSON ranked higher, or `[Produces]` excludes CCF); it is not recorded for unsupported types, null values or scalars, and a fallback is counted once, as `json-fallback`. Each response is counted at most once. There is no JSON-size counter: bytes saved are an estimate (docs/OBSERVABILITY.md).
 
 ## 4. Encoder design
 
@@ -126,12 +126,15 @@ The schema mirrors what System.Text.Json would emit, so CCF and JSON field names
 | `float`, `double` | `float64` |
 | `decimal` | `decimal` (scale from `[CcfDecimal]`, else `CcfOptions.DefaultDecimalScale`, default 2) |
 | `string` | `string` |
-| `enum` (non-`[Flags]`) | `enum`, `values` = member names in declaration order (respecting `[JsonStringEnumMemberName]` if present) |
+| `enum` that System.Text.Json writes as a **string** (a `JsonStringEnumConverter` applies: `[JsonConverter]` on the property, a converter in the path's `JsonSerializerOptions`, or `[JsonConverter]` on the enum type, in that order of precedence) | `enum`, `values` = the distinct strings STJ writes (member names in declaration order, through any naming policy or `[JsonStringEnumMemberName]`) |
+| any other `enum`, including `[Flags]` (STJ writes the number) | the integer column of its underlying type: `sbyte`/`short`/`int` → `int32`, `byte`/`ushort`/`uint` → `uint32`, `long` → `int64`, `ulong` → `uint64`, holding the underlying value (values without a member are fine) |
 | `DateTime`, `DateTimeOffset` | `datetime` (`DateTime` Unspecified is treated as UTC) |
 | `Guid` | `guid` |
 | `Nullable<T>` | the type of `T`, `nullable: true` |
 | class / record / struct with public properties | `object` |
 | `T[]`, `List<T>`, `IList<T>`, `IReadOnlyList<T>`, `IEnumerable<T>`, `ICollection<T>` | `list` (scalar `T` → `$value` field) |
+
+Enums mirror System.Text.Json (`CcfSchemaOptions.JsonSerializerOptions` carries the path's options; the registry passes MVC's or the minimal-API options, so each path follows its own). A `[Flags]` enum written as strings (`"Read, Write"`) and an enum with a custom converter make the type unsupported (JSON fallback). On the client, a string enum column is matched to the CLR enum by member name exactly, then ignoring case, `_` and `-`; an integer column decodes into an enum property by value (a value outside the underlying range is `ValueOutOfRange`).
 
 Root: a collection of `T` → table of `T`; a single `T` → table of 1 row with flag `S`.
 
@@ -295,7 +298,7 @@ Consequences for rollout: opt in per endpoint, prefer endpoints with repetitive 
 ## 10. Operating and releasing
 
 - Enabling CCF on an API: `docs/GUIDE.md`. Metrics, dashboards and alerts: `docs/OBSERVABILITY.md`. Versioning and compatibility rules: `docs/VERSIONING.md`.
-- Packages (version 0.1.0): NuGet `Ccf.Core`, `Ccf.AspNetCore`, `Ccf.Client`; npm `@skm/ccf-client` and `@skm/ccf-typegen` (the CLI command is `ccf-typegen`).
+- Packages (version 0.1.0, UNLICENSED, private feed, prepared but not published by this repository): NuGet `SKM.Ccf.Core`, `SKM.Ccf.AspNetCore`, `SKM.Ccf.Client` (assemblies and namespaces stay `Ccf.*`); npm `@skm/ccf-client` and `@skm/ccf-typegen` (the CLI command is `ccf-typegen`). The npm scope is lower case because npm rejects capitals in new package names. Symbol packages (`.snupkg`) carry Source Link; CI sets `ContinuousIntegrationBuild`.
 
 ## 11. Future
 

@@ -36,4 +36,12 @@ public sealed class CcfSchemaOptions
 
     /// <summary>Scale for <see cref="decimal"/> properties without <see cref="CcfDecimalAttribute"/>.</summary>
     public int DefaultDecimalScale { get; init; } = 2;
+
+    /// <summary>
+    /// The serializer options whose JSON output CCF mirrors for enums: an enum is a CCF <c>enum</c> (member names
+    /// as System.Text.Json writes them) when a string-enum converter applies to it (a <c>[JsonConverter]</c> on the
+    /// property or the type, or a converter in these options), and otherwise an integer column with the underlying
+    /// value. <c>null</c> means no converters.
+    /// </summary>
+    public JsonSerializerOptions? JsonSerializerOptions { get; init; }
 }

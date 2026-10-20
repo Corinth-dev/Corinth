@@ -210,24 +210,29 @@ public static class CcfSchemaBuilder
 
             if (type.IsEnum)
             {
-                if (type.IsDefined(typeof(FlagsAttribute), inherit: false))
+                var json = CcfEnumJson.Resolve(type, property, _options.JsonSerializerOptions);
+                if (!json.IsString)
                 {
-                    throw new CcfUnsupportedTypeException($"{path}: [Flags] enum {type.Name}");
+                    // Written as a number by System.Text.Json: an integer column with the underlying value.
+                    return Scalar(CcfEnumJson.NumericType(type), delta: true);
                 }
 
-                var members = CcfTypeModel.EnumMembers(type);
-                if (members.Length == 0 || members.Length > 65_536)
+                if (type.IsDefined(typeof(FlagsAttribute), inherit: false))
+                {
+                    throw new CcfUnsupportedTypeException($"{path}: [Flags] enum {type.Name} written as strings");
+                }
+
+                var values = json.Names!;
+                if (values.Length == 0 || values.Length > 65_536)
                 {
                     throw new CcfUnsupportedTypeException($"{path}: enum {type.Name} needs 1 to 65,536 members");
                 }
 
-                var values = new string[members.Length];
-                for (var i = 0; i < values.Length; i++)
+                foreach (var v in values)
                 {
-                    values[i] = members[i].Name;
-                    if (!CcfTypeModel.IsIdentifier(values[i]))
+                    if (!CcfTypeModel.IsIdentifier(v))
                     {
-                        throw new CcfUnsupportedTypeException($"{path}: enum member name \"{values[i]}\" is not an identifier");
+                        throw new CcfUnsupportedTypeException($"{path}: enum member name \"{v}\" is not an identifier");
                     }
                 }
 
