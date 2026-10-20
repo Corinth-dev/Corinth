@@ -64,14 +64,17 @@ public sealed class MoreController : ControllerBase
 
     /// <summary>An IActionResult whose value is a LINQ iterator: served through IEnumerable&lt;T&gt;.</summary>
     [HttpGet("/lazy-products")]
+    [ProducesResponseType<List<Product>>(StatusCodes.Status200OK)]
     public IActionResult GetLazy() => Ok(_data.Products.Where(p => p.Stock > 500).Select(p => p));
 
     /// <summary>A lazily evaluated sequence that counts how often it is enumerated.</summary>
     [HttpGet("/counted")]
+    [ProducesResponseType<List<Product>>(StatusCodes.Status200OK)]
     public IActionResult GetCounted() => Ok(new CountingEnumerable<Product>(_data.Products.Take(5), _counter));
 
     /// <summary>A counted sequence whose data CCF cannot encode: the JSON fallback must not enumerate it again.</summary>
     [HttpGet("/counted-bad")]
+    [ProducesResponseType<List<PricedItem>>(StatusCodes.Status200OK)]
     public IActionResult GetCountedBad() =>
         Ok(new CountingEnumerable<PricedItem>(new[] { new PricedItem { Name = "x", Price = 1.234m } }, _counter));
 

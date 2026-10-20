@@ -12,4 +12,8 @@
     <Content Include="..\..\..\test-vectors\v04-orders-nested.expected.json" Link="data\orders.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\..\test-vectors\v03-all-types.expected.json" Link="data\all-types.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.13" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.18.2" />
+  </ItemGroup>
 </Project>

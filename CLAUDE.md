@@ -53,6 +53,7 @@ npm run build
 
 # Run the sample API (JSON by default; try `curl -H 'Accept: application/vnd.ccf; features=d' http://localhost:5000/products`)
 cd dotnet && dotnet run --project samples/Ccf.SampleApi
+# The sample also serves its OpenAPI document at /openapi/v1.json and the Scalar UI at /docs/v1 (CCF-capable operations list application/vnd.ccf)
 
 # TypeScript: real Chromium (needs `npx playwright-core install chromium` once)
 cd js && npm run test:browser
