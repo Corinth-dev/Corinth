@@ -410,3 +410,17 @@ An implementation conforms when, for every vector in `test-vectors/manifest.json
 
 - **valid** vectors: the decoder produces exactly the `.expected.json` value (comparison rules in `test-vectors/README.md`), and the encoder, given that value, the schema and `requestedFeatures`, produces the `.ccf` file byte for byte;
 - **invalid** vectors: the decoder fails with exactly `expectedError`.
+
+---
+
+## 14. Clarifications (v1.0.1)
+
+These rules resolve points the sections above leave open. None of them changes the wire format.
+
+1. **Length errors.** Reading past the end of the current block body is `LengthOverrun`. A block length larger than the remaining payload is `Truncated`. A block length larger than the enclosing block is `LengthOverrun`. `BlockLengthMismatch` is raised only when a body ends with bytes left unconsumed.
+2. **Delta decoding.** The running value MUST fit the column's type range (int32, uint32, int64, uint64, or int64 for scaled decimals and datetime); otherwise `ValueOutOfRange`. int64 overflow MUST be detected with checked arithmetic.
+3. **Invalid schemas.** A schema with a bad name, a `scale` outside 0–18, an inapplicable key, duplicate names, or an unknown type or key is rejected with `CcfSchemaException` (.NET) / `CcfSchemaError` (TypeScript). Inapplicable keys are rejected, not dropped. This error is separate from the format error codes in §11.
+4. **float64.** The encoder fails on NaN, +Infinity and −Infinity (so the response falls back to JSON) and preserves −0.0. Decoders accept any bit pattern.
+5. **Dictionary blocks.** Decoders validate structure only (k ≤ 65,536, every index < k), not the encoder rule of §8.1. k = 0 with p = 0 is valid; k = 0 with p > 0 fails with `IndexOutOfRange` on the first index.
+6. **Row limit.** The row limit of §9 applies to every table separately, including list child tables. It is configurable on both sides; the default stays 100,000.
+7. **Float comparison in expected files.** Floats in `*.expected.json` are compared numerically (parsed double equality, with −0.0 distinct from 0.0), not as text.

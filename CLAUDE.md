@@ -48,6 +48,10 @@ dotnet run -c Release --project benchmarks/Ccf.Benchmarks
 # TypeScript
 cd js && npm install && npm test
 npm run build
+
+# Golden-vector conformance tests (excluded from the default run until phase 1 / phase 3 make them pass)
+cd dotnet && dotnet test --filter "Category=Conformance"
+cd js && npm run test:conformance
 ```
 
 Update this section if you add commands.

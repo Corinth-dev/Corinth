@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  dotnet:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dotnet
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+      - run: dotnet build -c Release
+      # Blocking: everything except the golden-vector conformance tests (default filter in Directory.Build.props).
+      - name: Test (net8.0)
+        run: dotnet test -c Release --no-build -f net8.0
+      - name: Test (net10.0)
+        run: dotnet test -c Release --no-build -f net10.0
+
+  dotnet-conformance:
+    # Non-blocking until phase 1 makes the vectors pass; then remove continue-on-error and the default filter.
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    defaults:
+      run:
+        working-directory: dotnet
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+      - run: dotnet build -c Release
+      - run: dotnet test -c Release --no-build -f net8.0 --filter "Category=Conformance"
+      - run: dotnet test -c Release --no-build -f net10.0 --filter "Category=Conformance"
+
+  js:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [20, 22]
+    defaults:
+      run:
+        working-directory: js
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: js/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      # Blocking: everything except the golden-vector conformance tests (CCF_TESTS=blocking is the default).
+      - run: npm test
+
+  js-conformance:
+    # Non-blocking until phase 3 makes the vectors pass; then remove continue-on-error.
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      matrix:
+        node: [20, 22]
+    defaults:
+      run:
+        working-directory: js
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: js/package-lock.json
+      - run: npm ci
+      - run: npm run test:conformance
