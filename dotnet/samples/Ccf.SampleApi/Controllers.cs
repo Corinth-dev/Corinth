@@ -59,7 +59,7 @@ public sealed class MoreController : ControllerBase
     public ActionResult<List<PricedItem>> GetBadDecimal() => new List<PricedItem> { new() { Name = "x", Price = 1.234m } };
 
     /// <summary>A scalar: always JSON.</summary>
-    [HttpGet("/scalar")]
+    [HttpGet("/scalar-value")]
     public ActionResult<int> GetScalar() => 42;
 
     /// <summary>An IActionResult whose value is a LINQ iterator: served through IEnumerable&lt;T&gt;.</summary>

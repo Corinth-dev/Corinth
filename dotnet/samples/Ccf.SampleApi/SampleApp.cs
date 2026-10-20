@@ -41,9 +41,9 @@ public static class SampleApp
         app.MapCcfSchemas().WithTags("CCF").WithSummary("The canonical schema JSON for a schema id (cached forever).")
             .Produces<string>(StatusCodes.Status200OK, "application/json").Produces(StatusCodes.Status404NotFound);
 
-        // OpenAPI document (/openapi/v1.json) and the Scalar UI (/docs/v1; `/scalar` is a sample endpoint below).
+        // OpenAPI document (/openapi/v1.json) and the Scalar UI (/scalar/v1, Scalar's default path).
         app.MapOpenApi();
-        app.MapScalarApiReference("/docs", o => o.WithTitle("CCF sample API").DisableDefaultFonts());
+        app.MapScalarApiReference(o => o.WithTitle("CCF sample API").DisableDefaultFonts());
 
         // The same data through minimal APIs: CcfResults.Ok opts each endpoint in; Produces<T> describes it for OpenAPI.
         var minimal = app.MapGroup("/min").WithTags("Minimal APIs");

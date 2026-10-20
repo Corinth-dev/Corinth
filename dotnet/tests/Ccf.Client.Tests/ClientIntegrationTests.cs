@@ -98,7 +98,7 @@ public class ClientIntegrationTests : IClassFixture<SampleApiFixture>
         var client = new CcfClient(http, Options());
 
         var report = await client.GetAsync<UnsupportedReport>("/unsupported");
-        var scalar = await client.GetAsync<int>("/scalar");
+        var scalar = await client.GetAsync<int>("/scalar-value");
 
         Assert.Equal("report", report!.Title);
         Assert.Equal(42, scalar);

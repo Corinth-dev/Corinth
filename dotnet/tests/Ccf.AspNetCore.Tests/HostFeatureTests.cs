@@ -411,7 +411,7 @@ public class VaryTests
     [InlineData("/products")]
     [InlineData("/products/1001")]
     [InlineData("/products/999999")]   // 404
-    [InlineData("/scalar")]
+    [InlineData("/scalar-value")]
     [InlineData("/unsupported")]
     [InlineData("/bad-decimal")]       // encode failure → JSON
     [InlineData("/null")]              // 204
@@ -447,7 +447,7 @@ public class VaryTests
     public async Task Endpoints_that_cannot_serve_ccf_do_not_vary_for_requests_that_do_not_mention_it()
     {
         await using var host = await TestHost.StartAsync();
-        Assert.DoesNotContain("Accept", (await host.GetAsync("/scalar")).Vary());
+        Assert.DoesNotContain("Accept", (await host.GetAsync("/scalar-value")).Vary());
         Assert.DoesNotContain("Accept", (await host.GetAsync("/unsupported", "application/json")).Vary());
         Assert.DoesNotContain("Accept", (await host.GetAsync("/min/unsupported")).Vary());
     }

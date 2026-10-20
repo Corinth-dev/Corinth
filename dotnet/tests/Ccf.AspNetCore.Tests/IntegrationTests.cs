@@ -153,7 +153,7 @@ public class IntegrationTests : IClassFixture<DefaultHostFixture>
 
     [Theory]
     [InlineData("/unsupported")]
-    [InlineData("/scalar")]
+    [InlineData("/scalar-value")]
     [InlineData("/min/unsupported")]
     public async Task Unsupported_types_and_scalars_are_served_as_json_even_when_ccf_is_requested(string path)
     {
