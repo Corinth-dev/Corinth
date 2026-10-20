@@ -174,7 +174,6 @@ public class SchemaBuilderTests
     public void Enum_values_are_member_names_in_declaration_order_not_sorted_or_by_value() =>
         Assert.Equal("""[{"name":"p","type":"enum","values":["Zebra","Apple","Mango"]}]""", Fields(Build<WithEnum>()));
 
-#if NET9_0_OR_GREATER
     [JsonConverter(typeof(JsonStringEnumConverter))]
     private enum Renamed
     {
@@ -187,7 +186,6 @@ public class SchemaBuilderTests
     [Fact]
     public void JsonStringEnumMemberName_is_respected_when_present() =>
         Assert.Equal("""[{"name":"r","type":"enum","values":["first_one","B"]}]""", Fields(Build<WithRenamedEnum>()));
-#endif
 
     // ---- names, order, ignore --------------------------------------------------------------------------
 

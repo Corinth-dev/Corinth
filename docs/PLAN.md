@@ -10,7 +10,7 @@ Work through the phases in order. Tick a box only when its work is done and its 
 /test-vectors/              golden vectors (read-only)
 /dotnet/
   Ccf.sln
-  Directory.Build.props     net8.0;net10.0, nullable, warnings as errors, LangVersion latest
+  Directory.Build.props     net10.0, nullable, warnings as errors, LangVersion latest
   src/Ccf.Core/
   src/Ccf.AspNetCore/
   src/Ccf.Client/
@@ -34,7 +34,7 @@ Work through the phases in order. Tick a box only when its work is done and its 
 - [x] .NET test helper that loads `test-vectors/manifest.json` and yields one xUnit theory case per vector.
 - [x] Same helper for vitest in `js/packages/client`.
 - [x] Canonical-JSON comparer for decoded values (rules in `test-vectors/README.md` and SPEC §14.7) in both languages.
-- [x] CI workflow (GitHub Actions or equivalent): build + test .NET on net8.0 and net10.0, test JS on Node 20 and 22. Conformance tests are tagged (`Category=Conformance` in .NET, `*.conformance.test.ts` in vitest) and run in separate non-blocking jobs until phase 1 (.NET) and phase 3 (JS). _Written and YAML-validated; first run on GitHub pending._
+- [x] CI workflow (GitHub Actions or equivalent): build + test .NET on net8.0 and net10.0 (net8.0 dropped in phase 5), test JS on Node 20 and 22. Conformance tests are tagged (`Category=Conformance` in .NET, `*.conformance.test.ts` in vitest) and run in separate non-blocking jobs until phase 1 (.NET) and phase 3 (JS). _Written and YAML-validated; first run on GitHub pending._
 
 Conventions set up in phase 0:
 - `dotnet test` and `npm test` run everything except the conformance tests. Run those with `dotnet test --filter "Category=Conformance"` and `npm run test:conformance` (in `js/`).

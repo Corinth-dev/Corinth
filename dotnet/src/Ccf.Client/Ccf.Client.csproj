@@ -9,8 +9,7 @@
     <ProjectReference Include="..\Ccf.Core\Ccf.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.3" Condition="'$(TargetFramework)' == 'net8.0'" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.13" Condition="'$(TargetFramework)' == 'net10.0'" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.13" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Ccf.Client.Tests" />

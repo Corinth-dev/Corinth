@@ -26,7 +26,7 @@ You are building CCF: a compact binary response format for ASP.NET Core APIs, wi
 ## Stack and conventions
 
 .NET
-- Target `net8.0;net10.0`, C# latest, `<Nullable>enable</Nullable>`, `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`.
+- Target `net10.0` (net8.0 was dropped in phase 5: end of support in November 2026), C# latest, `<Nullable>enable</Nullable>`, `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`.
 - `Ccf.Core` depends on the BCL only. No third-party runtime dependencies in any package without asking.
 - Tests: xUnit. Benchmarks: BenchmarkDotNet. Fuzzing: SharpFuzz or a mutation test.
 - Hot paths (encoder, decoder): `Span<byte>`, `ReadOnlySpan<byte>`, `IBufferWriter<byte>`, `ArrayPool<byte>`; no LINQ, no boxing, no reflection per value (compile accessors once per type).
@@ -75,7 +75,7 @@ Update this section if you add commands.
 
 ## Definition of done (every task)
 
-- Builds with no warnings; all tests pass on net8.0 and net10.0, and on Node 20.
+- Builds with no warnings; all tests pass on net10.0 and on Node 20.
 - Conformance vectors that the task touches pass in both directions where applicable.
 - No new dependencies, no changes to `docs/SPEC.md` or `test-vectors/`.
 - Checkbox ticked in `docs/PLAN.md`.

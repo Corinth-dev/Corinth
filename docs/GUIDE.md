@@ -5,7 +5,7 @@ CCF is an optimisation, never a dependency. JSON remains the default; a client g
 ## 1. Before you start
 
 - Measure first. CCF pays off on tables whose columns repeat, are numeric or are small (`docs/BENCHMARKS.md`: dictionary-mode decode 2.3x–6.1x faster than System.Text.Json source-gen across the four benchmark sets, and 11%–13% of the raw JSON size on repetitive data). It does **not** help payloads dominated by long, mostly unique strings (`docs/ARCHITECTURE.md` §9.2): keep those endpoints on JSON.
-- Packages (private feed): NuGet `SKM.Ccf.AspNetCore` on the server (it brings `SKM.Ccf.Core`), `SKM.Ccf.Client` for .NET callers, npm `@skm/ccf-client` for browsers and Node 20+ (and `@skm/ccf-typegen` for generated types). The assemblies and namespaces are still `Ccf.*`. Server targets `net8.0` and `net10.0`.
+- Packages (private feed): NuGet `SKM.Ccf.AspNetCore` on the server (it brings `SKM.Ccf.Core`), `SKM.Ccf.Client` for .NET callers, npm `@skm/ccf-client` for browsers and Node 20+ (and `@skm/ccf-typegen` for generated types). The assemblies and namespaces are still `Ccf.*`. Everything targets `net10.0`.
 
 ## 2. Enable it
 
