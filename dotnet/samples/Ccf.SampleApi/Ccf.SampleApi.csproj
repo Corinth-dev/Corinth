@@ -7,6 +7,9 @@
     <ProjectReference Include="..\..\src\Ccf.AspNetCore\Ccf.AspNetCore.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="scalar-viewer.js" />
+  </ItemGroup>
+  <ItemGroup>
     <!-- The sample serves the golden-vector data so its responses can be compared with the vectors byte for byte. -->
     <Content Include="..\..\..\test-vectors\v01-products-plain.expected.json" Link="data\products.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\..\test-vectors\v04-orders-nested.expected.json" Link="data\orders.json" CopyToOutputDirectory="PreserveNewest" />

@@ -43,7 +43,8 @@ public static class SampleApp
 
         // OpenAPI document (/openapi/v1.json) and the Scalar UI (/scalar/v1, Scalar's default path).
         app.MapOpenApi();
-        app.MapScalarApiReference(o => o.WithTitle("CCF sample API").DisableDefaultFonts());
+        CcfViewer.Map(app);
+        app.MapScalarApiReference(o => o.WithTitle("CCF sample API").DisableDefaultFonts().WithJavaScriptConfiguration(CcfViewer.ScriptPath));
 
         // The same data through minimal APIs: CcfResults.Ok opts each endpoint in; Produces<T> describes it for OpenAPI.
         var minimal = app.MapGroup("/min").WithTags("Minimal APIs");
