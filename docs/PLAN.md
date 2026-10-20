@@ -135,11 +135,11 @@ _Exit check passed (2026-10-20): .NET and TypeScript decoders both pass all 15 v
 
 ## Phase 5 — Rollout readiness
 
-- [ ] Package metadata, READMEs and XML docs for the three NuGet packages and the npm package.
-- [ ] Opt-in guide: enabling CCF on selected endpoints, pre-registering schemas, configuration reference.
-- [ ] Dashboards/queries for the `Ccf` meter: share of responses served as CCF, fallbacks, encode failures, bytes saved.
-- [ ] Browser tests on WebKit and Firefox as well as Chromium (the pinned `playwright-core@1.56.1`; CI installs the matching browsers).
-- [ ] Versioning policy: format version stays 1; packages use SemVer; new features add letters, never change existing encodings.
+- [x] Package metadata, READMEs and XML docs for the three NuGet packages and the npm packages. _Version 0.1.0 (SemVer, one number for all packages); `dotnet pack` of Ccf.Core, Ccf.AspNetCore and Ccf.Client and `npm pack` of `@ccf/client` and `@ccf/typegen` run in CI; a throwaway consumer project installed the .nupkg files and the tarballs and decoded a golden vector. `@ccf/typegen` is the new name of the unscoped `ccf-typegen` package (the command is still `ccf-typegen`). License and package-name ownership are open: see Open questions._
+- [x] Opt-in guide: enabling CCF on selected endpoints, pre-registering schemas, configuration reference. _`docs/GUIDE.md`._
+- [x] Dashboards/queries for the `Ccf` meter: share of responses served as CCF, fallbacks, encode failures, bytes saved. _`docs/OBSERVABILITY.md` (PromQL panels and alerts). Two questions cannot be answered with the current instruments; see Open questions._
+- [ ] Browser tests on WebKit and Firefox as well as Chromium (the pinned `playwright-core@1.56.1`; CI installs the matching browsers). _The test takes `CCF_BROWSER=chromium|firefox|webkit` and CI runs a three-engine matrix; Chromium passes locally, the other two could not be downloaded in the sandbox and are verified by CI only. Tick when CI is green._
+- [x] Versioning policy: format version stays 1; packages use SemVer; new features add letters, never change existing encodings. _`docs/VERSIONING.md`._
 
 **Exit:** packages publishable; rollout guide reviewed by the project owner.
 
@@ -150,7 +150,12 @@ _Exit check passed (2026-10-20): .NET and TypeScript decoders both pass all 15 v
 
 ## Open questions
 
-_None open._ Ambiguities found before phase 0 were resolved by the project owner and recorded as SPEC §14 (clarifications v1.0.1). Add new questions here as they come up, with the phase and the SPEC section they concern.
+Ambiguities found before phase 0 were resolved by the project owner and recorded as SPEC §14 (clarifications v1.0.1). Add new questions here as they come up, with the phase and the SPEC section they concern.
+
+1. **License (phase 5).** The repository has no LICENSE file and `package.json` says `UNLICENSED`; the NuGet packages carry no license expression. Publishing needs a decision (and a LICENSE file). Nothing was invented.
+2. **Package identities (phase 5).** NuGet ids `Ccf.Core`, `Ccf.AspNetCore`, `Ccf.Client` and the npm scope `@ccf` must be available to publish under; the `Authors` value is the repository owner's handle (`SamuraiKenshin`). Confirm names, author text and the publishing account. Symbol packages are produced (`.snupkg`); SourceLink was not added (new dependency).
+3. **Metrics gaps (phase 5, ARCHITECTURE §3.5).** `ccf.responses` has no series for JSON responses of CCF-capable endpoints, so the share of *all* responses served as CCF cannot be computed, and bytes saved are only an estimate from a measured size ratio. Options: add a `format=json` series (cheap), and/or a sampled JSON-equivalent size counter (costs a serialization). No code change made.
+4. **Enum representation (phase 5, ARCHITECTURE §5.1).** CCF always carries enum member names; if an app's JSON options serialize enums as numbers, the CCF and JSON contracts differ. The guide tells users to add `JsonStringEnumConverter`. Alternative: have the schema builder reject (JSON-fallback) enums when the path's JSON options do not write strings.
 
 ### Resolved by the project owner after phase 3
 

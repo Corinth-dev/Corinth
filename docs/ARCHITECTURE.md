@@ -48,7 +48,7 @@ flowchart LR
 builder.Services.AddCcf(o =>
 {
     o.DictionaryThreshold = 0.5;          // §8.1 of SPEC; 0.5 is the conformance default
-    o.Limits.MaxRows = 100_000;
+    o.Limits = new CcfLimits { MaxRows = 100_000 };   // Limits is init-only
     o.SchemaPathPrefix = "/ccf/schemas";
 });
 // …
@@ -292,7 +292,12 @@ CCF's advantage comes from columns whose values repeat (dictionary mode), are sm
 
 Consequences for rollout: opt in per endpoint, prefer endpoints with repetitive or numeric columns, and do not expect a size win over a compressing server for text-heavy payloads (content negotiation lets such endpoints stay on JSON). Possible mitigations, none decided: a per-endpoint or per-column opt-out, cheaper rejection of dictionary candidates in the encoder, and the numeric feature `n` in §10 (which does not help text). The compression-free design is a decision (DECISIONS #1, and compression is out of scope), so this limitation is accepted unless the owner reopens it.
 
-## 10. Future
+## 10. Operating and releasing
+
+- Enabling CCF on an API: `docs/GUIDE.md`. Metrics, dashboards and alerts: `docs/OBSERVABILITY.md`. Versioning and compatibility rules: `docs/VERSIONING.md`.
+- Packages (version 0.1.0): NuGet `Ccf.Core`, `Ccf.AspNetCore`, `Ccf.Client`; npm `@ccf/client` and `@ccf/typegen` (the CLI command is `ccf-typegen`).
+
+## 11. Future
 
 - **Mobile clients**: Swift (iOS) and Kotlin (Android) decoders, validated against the same `test-vectors/`. Planned after phase 5.
 - **Feature `n`** (numeric encoding: frame-of-reference / bit-packing for integer and decimal columns). Price is the next-largest column.

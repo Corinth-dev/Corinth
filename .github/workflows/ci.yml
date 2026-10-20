@@ -27,6 +27,16 @@ jobs:
         run: dotnet test -c Release --no-build -f net8.0
       - name: Test (net10.0)
         run: dotnet test -c Release --no-build -f net10.0
+      # The three NuGet packages must pack cleanly (metadata, README, XML docs, package validation).
+      - name: Pack
+        run: |
+          dotnet pack src/Ccf.Core -c Release --no-build -o artifacts
+          dotnet pack src/Ccf.AspNetCore -c Release --no-build -o artifacts
+          dotnet pack src/Ccf.Client -c Release --no-build -o artifacts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages
+          path: dotnet/artifacts/*nupkg
 
   fuzz-nightly:
     # One hour of decoder mutation fuzzing; only on the nightly schedule or when started by hand.
@@ -68,10 +78,17 @@ jobs:
       - run: npm run build
       # Typecheck, unit tests, golden-vector conformance, client tests, a short fuzz run, package checks, typegen snapshots.
       - run: npm test
+      # Both npm packages must pack with the files a consumer needs.
+      - run: npm pack --dry-run --workspaces
 
   js-browser:
-    # The decoder, client, IndexedDB cache and the pure-JS SHA-256 fallback in a real Chromium.
+    # The decoder, client, IndexedDB cache and the pure-JS SHA-256 fallback in real Chromium, Firefox and WebKit.
+    name: js-browser (${{ matrix.browser }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
     defaults:
       run:
         working-directory: js
@@ -84,8 +101,10 @@ jobs:
           cache-dependency-path: js/package-lock.json
       - run: npm ci
       # Installs the browser build that matches the pinned playwright-core version.
-      - run: npx --no-install playwright-core install --with-deps chromium
+      - run: npx --no-install playwright-core install --with-deps ${{ matrix.browser }}
       - run: npm run test:browser
+        env:
+          CCF_BROWSER: ${{ matrix.browser }}
 
   js-e2e:
     # The TypeScript client against the real .NET sample API. Required on pull requests (see the `required` job).
