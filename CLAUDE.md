@@ -43,7 +43,9 @@ TypeScript
 ```bash
 # .NET
 cd dotnet && dotnet build && dotnet test
-dotnet run -c Release --project benchmarks/Ccf.Benchmarks
+dotnet run -c Release --project benchmarks/Ccf.Benchmarks -- --filter "*"   # BenchmarkDotNet (about 15 min)
+cd dotnet && dotnet run -c Release --project benchmarks/Ccf.Benchmarks -- export   # datasets + size table into bench-data/
+cd js && npm run build && npm run bench && npm run bench:browser   # JS decode benchmarks (Node, Chromium)
 
 # TypeScript
 cd js && npm install && npm test

@@ -126,10 +126,10 @@ _Exit check passed (2026-10-20): .NET and TypeScript decoders both pass all 15 v
 
 ## Phase 4 — Benchmarks (go / no-go)
 
-- [ ] .NET (BenchmarkDotNet): encode and decode of the 500-row sample and 3 larger synthetic sets (5k rows; mostly-unique strings; deeply nested orders) vs System.Text.Json (serialize/deserialize), including Gzip/Brotli decompression time for JSON.
-- [ ] JS: decode vs `JSON.parse` (+ `DecompressionStream` for gzip) in Node and one browser.
-- [ ] Size table for the same sets (raw CCF plain/dict vs JSON raw/gzip/brotli).
-- [ ] Write results into `docs/BENCHMARKS.md`.
+- [x] .NET (BenchmarkDotNet): encode and decode of the 500-row sample and 3 larger synthetic sets (5k rows; mostly-unique strings; deeply nested orders) vs System.Text.Json (serialize/deserialize), including Gzip/Brotli decompression time for JSON.
+- [x] JS: decode vs `JSON.parse` (+ `DecompressionStream` for gzip) in Node and one browser.
+- [x] Size table for the same sets (raw CCF plain/dict vs JSON raw/gzip/brotli).
+- [x] Write results into `docs/BENCHMARKS.md`.
 
 **Go criteria:** CCF decode faster than JSON parse + decompress on both platforms for the 500-row and 5k sets, and raw CCF dictionary size ≤ Gzip JSON size. If .NET fails them, stop and report before phase 5. If .NET meets them but JS does not beat `JSON.parse`, report the numbers and continue.
 
