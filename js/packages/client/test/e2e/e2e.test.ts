@@ -86,7 +86,7 @@ describe("@skm/ccf-client against the .NET sample API", () => {
 
     expect(await client.get("/unsupported")).toMatchObject({ title: "report" });
     expect(await client.get("/bad-decimal")).toEqual([{ name: "x", price: 1.234 }]);
-    expect(await client.get("/scalar")).toBe(42);
+    expect(await client.get("/scalar-value")).toBe(42);
     expect(await client.get("/null")).toBeNull();
     expect(s.schemaFetches()).toBe(0);
   });

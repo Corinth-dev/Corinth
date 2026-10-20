@@ -47,7 +47,7 @@ public class OpenApiTests
     [Theory]
     [InlineData("/unsupported")]        // no CCF schema for the type
     [InlineData("/min/unsupported")]
-    [InlineData("/scalar")]             // a scalar
+    [InlineData("/scalar-value")]             // a scalar
     [InlineData("/json-only")]          // [Produces("application/json")] keeps CCF away
     public async Task Other_endpoints_do_not_list_application_vnd_ccf(string path)
     {
@@ -70,7 +70,7 @@ public class OpenApiTests
     public async Task The_scalar_ui_is_served_and_points_at_the_document()
     {
         await using var host = await TestHost.StartAsync();
-        var response = await host.GetAsync("/docs/v1");
+        var response = await host.GetAsync("/scalar/v1");
 
         Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("text/html", response.Content.Headers.ContentType?.MediaType);
@@ -78,10 +78,11 @@ public class OpenApiTests
     }
 
     [Fact]
-    public async Task The_sample_scalar_endpoint_is_not_shadowed_by_the_ui()
+    public async Task The_sample_scalar_value_endpoint_is_not_shadowed_by_the_ui()
     {
         await using var host = await TestHost.StartAsync();
-        Assert.Equal("42", await host.Client.GetStringAsync("/scalar"));
+        Assert.Equal("42", await host.Client.GetStringAsync("/scalar-value"));
+        Assert.Equal(System.Net.HttpStatusCode.OK, (await host.GetAsync("/scalar/v1")).StatusCode);
     }
 
     [Fact]
