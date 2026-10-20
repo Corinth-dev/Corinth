@@ -1,0 +1,78 @@
+[
+ {
+  "id": 1,
+  "customer": {
+   "name": "Asha",
+   "city": "Pune"
+  },
+  "lines": [
+   {
+    "sku": "A-100",
+    "qty": 2,
+    "price": "9.99"
+   },
+   {
+    "sku": "A-100",
+    "qty": 1,
+    "price": "9.99"
+   },
+   {
+    "sku": "B-200",
+    "qty": 5,
+    "price": "120.50"
+   }
+  ],
+  "tags": [
+   "gift",
+   "express"
+  ]
+ },
+ {
+  "id": 2,
+  "customer": null,
+  "lines": [],
+  "tags": null
+ },
+ {
+  "id": 3,
+  "customer": {
+   "name": "Ravi",
+   "city": null
+  },
+  "lines": [
+   {
+    "sku": "A-100",
+    "qty": 1,
+    "price": "9.99"
+   },
+   {
+    "sku": "B-200",
+    "qty": 3,
+    "price": "120.50"
+   },
+   {
+    "sku": "A-100",
+    "qty": 4,
+    "price": "9.99"
+   }
+  ],
+  "tags": []
+ },
+ {
+  "id": 4,
+  "customer": {
+   "name": "Meera",
+   "city": "Chennai"
+  },
+  "lines": [
+   {
+    "sku": "C-300",
+    "qty": 1,
+    "price": "0.05"
+   }
+  ],
+  "tags": [
+   "express"
+  ]
+ }
+]

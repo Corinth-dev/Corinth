@@ -1,0 +1,173 @@
+{
+ "formatVersion": 1,
+ "vectors": [
+  {
+   "name": "v01-products-plain",
+   "kind": "valid",
+   "description": "500 products, client did not allow dictionary mode",
+   "file": "v01-products-plain.ccf",
+   "schema": "schema-Product.json",
+   "schemaId": "c33a3ed0",
+   "requestedFeatures": "",
+   "expectedFlags": 0,
+   "expectedContentType": "application/vnd.ccf",
+   "expected": "v01-products-plain.expected.json",
+   "bytes": 9317
+  },
+  {
+   "name": "v02-products-dict",
+   "kind": "valid",
+   "description": "Same 500 products with features=d; name column uses dictionary mode",
+   "file": "v02-products-dict.ccf",
+   "schema": "schema-Product.json",
+   "schemaId": "c33a3ed0",
+   "requestedFeatures": "d",
+   "expectedFlags": 1,
+   "expectedContentType": "application/vnd.ccf; features=d",
+   "expected": "v02-products-dict.expected.json",
+   "bytes": 5266
+  },
+  {
+   "name": "v03-all-types",
+   "kind": "valid",
+   "description": "Every scalar type, nulls, int64/uint64 extremes, unicode, 300-byte string, pre-1970 datetime; text stays plain even with features=d",
+   "file": "v03-all-types.ccf",
+   "schema": "schema-AllTypes.json",
+   "schemaId": "0c5aa30e",
+   "requestedFeatures": "d",
+   "expectedFlags": 0,
+   "expectedContentType": "application/vnd.ccf",
+   "expected": "v03-all-types.expected.json",
+   "bytes": 650
+  },
+  {
+   "name": "v04-orders-nested",
+   "kind": "valid",
+   "description": "Nullable nested object, list of objects (sku column uses dictionary), nullable list of strings, empty lists",
+   "file": "v04-orders-nested.ccf",
+   "schema": "schema-Order.json",
+   "schemaId": "63a83963",
+   "requestedFeatures": "d",
+   "expectedFlags": 1,
+   "expectedContentType": "application/vnd.ccf; features=d",
+   "expected": "v04-orders-nested.expected.json",
+   "bytes": 141
+  },
+  {
+   "name": "v05-single-product",
+   "kind": "valid",
+   "description": "A single object response: flags bit 1 set, row count 1",
+   "file": "v05-single-product.ccf",
+   "schema": "schema-Product.json",
+   "schemaId": "c33a3ed0",
+   "requestedFeatures": "",
+   "expectedFlags": 2,
+   "expectedContentType": "application/vnd.ccf",
+   "expected": "v05-single-product.expected.json",
+   "bytes": 41
+  },
+  {
+   "name": "v06-empty",
+   "kind": "valid",
+   "description": "Empty list: 0 rows, every column block is empty",
+   "file": "v06-empty.ccf",
+   "schema": "schema-Product.json",
+   "schemaId": "c33a3ed0",
+   "requestedFeatures": "d",
+   "expectedFlags": 0,
+   "expectedContentType": "application/vnd.ccf",
+   "expected": "v06-empty.expected.json",
+   "bytes": 19
+  },
+  {
+   "name": "x01-bad-magic",
+   "kind": "invalid",
+   "description": "First byte is not 'C'",
+   "file": "x01-bad-magic.ccf",
+   "schema": "schema-Product.json",
+   "schemaId": "c33a3ed0",
+   "expectedError": "BadMagic",
+   "bytes": 19
+  },
+  {
+   "name": "x02-bad-version",
+   "kind": "invalid",
+   "description": "Format version byte is 2",
+   "file": "x02-bad-version.ccf",
+   "schema": "schema-Product.json",
+   "schemaId": "c33a3ed0",
+   "expectedError": "UnsupportedVersion",
+   "bytes": 19
+  },
+  {
+   "name": "x03-reserved-flag",
+   "kind": "invalid",
+   "description": "Reserved flag bit 7 is set",
+   "file": "x03-reserved-flag.ccf",
+   "schema": "schema-Product.json",
+   "schemaId": "c33a3ed0",
+   "expectedError": "ReservedFlags",
+   "bytes": 19
+  },
+  {
+   "name": "x04-truncated",
+   "kind": "invalid",
+   "description": "v01 with the last 3 bytes removed",
+   "file": "x04-truncated.ccf",
+   "schema": "schema-Product.json",
+   "schemaId": "c33a3ed0",
+   "expectedError": "Truncated",
+   "bytes": 9314
+  },
+  {
+   "name": "x05-dict-index-out-of-range",
+   "kind": "invalid",
+   "description": "v02 with the first name index changed to 200 (dictionary has 142 entries)",
+   "file": "x05-dict-index-out-of-range.ccf",
+   "schema": "schema-Product.json",
+   "schemaId": "c33a3ed0",
+   "expectedError": "IndexOutOfRange",
+   "bytes": 5266
+  },
+  {
+   "name": "x06-block-length-mismatch",
+   "kind": "invalid",
+   "description": "v01 with the id column's block length increased by 1",
+   "file": "x06-block-length-mismatch.ccf",
+   "schema": "schema-Product.json",
+   "schemaId": "c33a3ed0",
+   "expectedError": "BlockLengthMismatch",
+   "bytes": 9317
+  },
+  {
+   "name": "x07-enum-index-out-of-range",
+   "kind": "invalid",
+   "description": "v03 with the first color index set to 3 (enum has 3 values)",
+   "file": "x07-enum-index-out-of-range.ccf",
+   "schema": "schema-AllTypes.json",
+   "schemaId": "0c5aa30e",
+   "expectedError": "IndexOutOfRange",
+   "bytes": 650
+  },
+  {
+   "name": "x08-trailing-data",
+   "kind": "invalid",
+   "description": "v06 with one extra byte after the last column",
+   "file": "x08-trailing-data.ccf",
+   "schema": "schema-Product.json",
+   "schemaId": "c33a3ed0",
+   "expectedError": "TrailingData",
+   "bytes": 20
+  },
+  {
+   "name": "x09-schema-mismatch",
+   "kind": "invalid",
+   "description": "v06 decoded with the Product schema but header carries schema id 00000000",
+   "file": "x09-schema-mismatch.ccf",
+   "schema": "schema-Product.json",
+   "schemaId": "c33a3ed0",
+   "expectedError": "SchemaMismatch",
+   "bytes": 19
+  }
+ ]
+}

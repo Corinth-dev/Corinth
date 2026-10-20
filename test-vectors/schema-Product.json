@@ -1,0 +1,1 @@
+{"name":"Product","fields":[{"name":"id","type":"int64","delta":true},{"name":"name","type":"string"},{"name":"price","type":"decimal","unsigned":true,"scale":2},{"name":"status","type":"enum","values":["active","discontinued"]},{"name":"stock","type":"uint32"}]}
