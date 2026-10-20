@@ -430,3 +430,9 @@ FodyWeavers.xsd
 # JS build output
 js/**/dist/
 bench-data/
+
+# The npm workspace packages live in js/packages (the VS rule above would hide them)
+!/js/packages/
+!/js/packages/**
+js/packages/**/dist/
+js/packages/**/node_modules/
