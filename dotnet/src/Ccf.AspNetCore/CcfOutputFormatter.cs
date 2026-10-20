@@ -85,7 +85,7 @@ public sealed class CcfOutputFormatter : OutputFormatter
         {
             // Nothing has been written yet (SPEC §10.2): fall back to JSON, invisibly to the client.
             _logger.LogWarning(e, "CCF encoding of schema {SchemaId} ({Type}) failed; serving JSON instead: {Reason}", schema.IdHex, type, e.Message);
-            CcfDiagnostics.RecordEncodeFailure();
+            CcfDiagnostics.RecordEncodeFailure(http);
             CcfNegotiation.AddVaryAccept(http.Response);
             await WriteJsonAsync(context, value);
             return;
@@ -96,7 +96,7 @@ public sealed class CcfOutputFormatter : OutputFormatter
         response.ContentLength = buffer.WrittenCount;
         CcfNegotiation.AddVaryAccept(response);
         await response.Body.WriteAsync(buffer.WrittenMemory, http.RequestAborted);
-        CcfDiagnostics.RecordServed(flags, buffer.WrittenCount);
+        CcfDiagnostics.RecordServed(http, flags, buffer.WrittenCount);
     }
 
     private static Task WriteJsonAsync(OutputFormatterWriteContext context, object value)
@@ -121,6 +121,8 @@ public sealed class CcfOutputFormatter : OutputFormatter
 /// </summary>
 internal sealed class CcfVaryResultFilter : IResultFilter
 {
+    private const string CapableKey = "Ccf.EndpointCapable";
+
     private readonly ISchemaRegistry _registry;
 
     public CcfVaryResultFilter(ISchemaRegistry registry)
@@ -136,11 +138,17 @@ internal sealed class CcfVaryResultFilter : IResultFilter
             if (_registry.TryGetSchema(type, out _))
             {
                 CcfNegotiation.AddVaryAccept(context.HttpContext.Response);
+                context.HttpContext.Items[CapableKey] = true;
             }
         }
     }
 
     public void OnResultExecuted(ResultExecutedContext context)
     {
+        // A CCF-capable endpoint that ended up serving JSON without an encode failure (the client did not ask).
+        if (context.HttpContext.Items.ContainsKey(CapableKey))
+        {
+            CcfDiagnostics.RecordJson(context.HttpContext);
+        }
     }
 }

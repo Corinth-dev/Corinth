@@ -6,7 +6,7 @@ namespace Ccf.Core.Tests.Conformance;
 // C# types that model the three schemas of test-vectors/. Enum members are lower-case because the schemas'
 // `values` are the member names.
 
-public enum ProductStatus { active, discontinued }
+[JsonConverter(typeof(JsonStringEnumConverter))] public enum ProductStatus { active, discontinued }
 
 public sealed class Product
 {
@@ -23,7 +23,7 @@ public sealed class Product
     public uint Stock { get; set; }
 }
 
-public enum Color { red, green, blue }
+[JsonConverter(typeof(JsonStringEnumConverter))] public enum Color { red, green, blue }
 
 public sealed class AllTypes
 {

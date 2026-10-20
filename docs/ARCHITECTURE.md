@@ -38,7 +38,7 @@ flowchart LR
 | `Ccf.Core` (.NET) | Schema model, canonicalizer, hasher, schema builder, encoder, decoder, limits, errors | Nothing outside the BCL |
 | `Ccf.AspNetCore` (.NET) | `AddCcf`, output formatter, `CcfResults`, schema endpoint, options | `Ccf.Core`, ASP.NET Core |
 | `Ccf.Client` (.NET) | `HttpClient` extensions, schema cache, JSON fallback | `Ccf.Core`, `System.Net.Http.Json`, `Microsoft.Extensions.Logging.Abstractions` |
-| `@ccf/client` (npm) | Decoder, schema cache, `fetch` wrapper, TS type generator CLI | None at runtime |
+| `@skm/ccf-client` (npm) | Decoder, schema cache, `fetch` wrapper, TS type generator CLI | None at runtime |
 
 ## 3. Server: ASP.NET Core integration
 
@@ -48,7 +48,7 @@ flowchart LR
 builder.Services.AddCcf(o =>
 {
     o.DictionaryThreshold = 0.5;          // §8.1 of SPEC; 0.5 is the conformance default
-    o.Limits.MaxRows = 100_000;
+    o.Limits = new CcfLimits { MaxRows = 100_000 };   // Limits is init-only
     o.SchemaPathPrefix = "/ccf/schemas";
 });
 // …
@@ -99,7 +99,7 @@ It is not a hosted/background service: nothing runs unless a request asks for CC
 ### 3.5 Observability
 
 - `ILogger` category `Ccf`: debug on schema registration, warning on fallback after an encode failure.
-- `System.Diagnostics.Metrics` meter `Ccf`: counters `ccf.responses` (tag `format` = ccf/json-fallback, `features`), `ccf.bytes_written`, `ccf.encode_failures`.
+- `System.Diagnostics.Metrics` meter `Ccf`: counters `ccf.responses` (tag `format` = `ccf` / `json` / `json-fallback`, tag `features`), `ccf.bytes_written`, `ccf.encode_failures`. `format=json` counts JSON responses of CCF-capable endpoints (the type has a schema: the client did not ask for CCF, or JSON ranked higher, or `[Produces]` excludes CCF); it is not recorded for unsupported types, null values or scalars, and a fallback is counted once, as `json-fallback`. Each response is counted at most once. There is no JSON-size counter: bytes saved are an estimate (docs/OBSERVABILITY.md).
 
 ## 4. Encoder design
 
@@ -126,12 +126,15 @@ The schema mirrors what System.Text.Json would emit, so CCF and JSON field names
 | `float`, `double` | `float64` |
 | `decimal` | `decimal` (scale from `[CcfDecimal]`, else `CcfOptions.DefaultDecimalScale`, default 2) |
 | `string` | `string` |
-| `enum` (non-`[Flags]`) | `enum`, `values` = member names in declaration order (respecting `[JsonStringEnumMemberName]` if present) |
+| `enum` that System.Text.Json writes as a **string** (a `JsonStringEnumConverter` applies: `[JsonConverter]` on the property, a converter in the path's `JsonSerializerOptions`, or `[JsonConverter]` on the enum type, in that order of precedence) | `enum`, `values` = the distinct strings STJ writes (member names in declaration order, through any naming policy or `[JsonStringEnumMemberName]`) |
+| any other `enum`, including `[Flags]` (STJ writes the number) | the integer column of its underlying type: `sbyte`/`short`/`int` → `int32`, `byte`/`ushort`/`uint` → `uint32`, `long` → `int64`, `ulong` → `uint64`, holding the underlying value (values without a member are fine) |
 | `DateTime`, `DateTimeOffset` | `datetime` (`DateTime` Unspecified is treated as UTC) |
 | `Guid` | `guid` |
 | `Nullable<T>` | the type of `T`, `nullable: true` |
 | class / record / struct with public properties | `object` |
 | `T[]`, `List<T>`, `IList<T>`, `IReadOnlyList<T>`, `IEnumerable<T>`, `ICollection<T>` | `list` (scalar `T` → `$value` field) |
+
+Enums mirror System.Text.Json (`CcfSchemaOptions.JsonSerializerOptions` carries the path's options; the registry passes MVC's or the minimal-API options, so each path follows its own). A `[Flags]` enum written as strings (`"Read, Write"`) and an enum with a custom converter make the type unsupported (JSON fallback). On the client, a string enum column is matched to the CLR enum by member name exactly, then ignoring case, `_` and `-`; an integer column decodes into an enum property by value (a value outside the underlying range is `ValueOutOfRange`).
 
 Root: a collection of `T` → table of `T`; a single `T` → table of 1 row with flag `S`.
 
@@ -166,7 +169,7 @@ If any reachable member is unsupported, the whole response type is unsupported a
 - Decodes into `T` by matching schema field names to properties with the same naming rules as the server (§5.2). Schema fields with no matching property are skipped (block length); properties with no matching field keep their default. Matching is by exact JSON name first, then case-insensitively. Narrowing into a smaller CLR type is range-checked (`ValueOutOfRange`). A CLR type that cannot receive the schema (incompatible property type, abstract type, several rows into a single object) raises `InvalidOperationException`: a usage error, not a format error. Datetimes outside the .NET `DateTime` range (years 1–9999) are rejected by the .NET decoder with `ValueOutOfRange`.
 - Decimals decode exactly to `decimal`; datetimes to `DateTimeOffset` (offset 0) or `DateTime` (Kind Utc).
 
-### 6.3 TypeScript client (`@ccf/client`)
+### 6.3 TypeScript client (`@skm/ccf-client`)
 
 - Runs in browsers and Node 20+; ES modules; zero runtime dependencies; uses `DataView`, `TextDecoder("utf-8", { fatal: true, ignoreBOM: true })` (the BOM is data, not a marker).
 - `createCcfClient({ baseUrl?, fetch?, schemaCache?, features?, schemaPathPrefix?, int64?, decimal?, limits?, isIdempotent?, log? })` → `client.get<T>(path, init?)`, `client.request<T>(path, { method, body, idempotent, … })`, `client.getSchema(id, origin)`. Lower level: `decode(bytes, schema, options)` (synchronous), `readSchemaId(bytes)`, `parseSchema(text)` (**async**: it hashes with WebCrypto, falling back to a built-in pure-JS SHA-256 where `crypto.subtle` is unavailable, such as insecure browser origins), `verifySchema(id, text)`.
@@ -292,7 +295,12 @@ CCF's advantage comes from columns whose values repeat (dictionary mode), are sm
 
 Consequences for rollout: opt in per endpoint, prefer endpoints with repetitive or numeric columns, and do not expect a size win over a compressing server for text-heavy payloads (content negotiation lets such endpoints stay on JSON). Possible mitigations, none decided: a per-endpoint or per-column opt-out, cheaper rejection of dictionary candidates in the encoder, and the numeric feature `n` in §10 (which does not help text). The compression-free design is a decision (DECISIONS #1, and compression is out of scope), so this limitation is accepted unless the owner reopens it.
 
-## 10. Future
+## 10. Operating and releasing
+
+- Enabling CCF on an API: `docs/GUIDE.md`. Metrics, dashboards and alerts: `docs/OBSERVABILITY.md`. Versioning and compatibility rules: `docs/VERSIONING.md`.
+- Packages (version 0.1.0, UNLICENSED, private feed, prepared but not published by this repository): NuGet `SKM.Ccf.Core`, `SKM.Ccf.AspNetCore`, `SKM.Ccf.Client` (assemblies and namespaces stay `Ccf.*`); npm `@skm/ccf-client` and `@skm/ccf-typegen` (the CLI command is `ccf-typegen`). The npm scope is lower case because npm rejects capitals in new package names. Symbol packages (`.snupkg`) carry Source Link; CI sets `ContinuousIntegrationBuild`.
+
+## 11. Future
 
 - **Mobile clients**: Swift (iOS) and Kotlin (Android) decoders, validated against the same `test-vectors/`. Planned after phase 5.
 - **Feature `n`** (numeric encoding: frame-of-reference / bit-packing for integer and decimal columns). Price is the next-largest column.

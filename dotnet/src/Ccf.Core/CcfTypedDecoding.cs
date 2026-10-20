@@ -23,6 +23,7 @@ internal static class Conv
         if (typeof(U) == typeof(sbyte)) return (U)(object)checked((sbyte)v);
         if (typeof(U) == typeof(byte)) return (U)(object)checked((byte)v);
         if (typeof(U) == typeof(ulong)) return (U)(object)checked((ulong)v);
+        if (typeof(U).IsEnum) return (U)Enum.ToObject(typeof(U), Convert.ChangeType(v, Enum.GetUnderlyingType(typeof(U)), System.Globalization.CultureInfo.InvariantCulture));
         throw new InvalidOperationException("Unsupported integer target " + typeof(U));
     }
 
@@ -36,6 +37,7 @@ internal static class Conv
         if (typeof(U) == typeof(ushort)) return (U)(object)checked((ushort)v);
         if (typeof(U) == typeof(sbyte)) return (U)(object)checked((sbyte)v);
         if (typeof(U) == typeof(byte)) return (U)(object)checked((byte)v);
+        if (typeof(U).IsEnum) return (U)Enum.ToObject(typeof(U), Convert.ChangeType(v, Enum.GetUnderlyingType(typeof(U)), System.Globalization.CultureInfo.InvariantCulture));
         throw new InvalidOperationException("Unsupported integer target " + typeof(U));
     }
 
@@ -181,6 +183,9 @@ internal static class ReaderFactory
         }
     }
 
+    private static string Normalize(string name) =>
+        name.Replace("_", string.Empty).Replace("-", string.Empty).ToLowerInvariant();
+
     private static ValueReader<U> EnumReader<U>(CcfField f)
     {
         var values = f.Values!;
@@ -194,7 +199,15 @@ internal static class ReaderFactory
         var members = CcfTypeModel.EnumMembers(typeof(U));
         for (var i = 0; i < table.Length; i++)
         {
+            // The server's names are what System.Text.Json wrote, possibly through a naming policy (camelCase,
+            // snake_case, ...): match exactly first, then ignoring case, underscores and dashes.
             var match = Array.Find(members, m => m.Name == values[i]);
+            if (match.Field is null)
+            {
+                var wanted = Normalize(values[i]);
+                match = Array.Find(members, m => Normalize(m.Name) == wanted);
+            }
+
             if (match.Field is null)
             {
                 missing[i] = true;

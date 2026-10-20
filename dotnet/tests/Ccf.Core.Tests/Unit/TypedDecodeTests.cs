@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Ccf.Core.Tests.Conformance;
+using System.Text.Json.Serialization;
 using Xunit;
 
 namespace Ccf.Core.Tests;
@@ -240,7 +241,7 @@ public class TypedDecodeTests
         Assert.Equal(new DateTime(1969, 12, 31, 23, 59, 59, 999, DateTimeKind.Utc), row.Later);
     }
 
-    public enum Known { A, B }
+    [JsonConverter(typeof(JsonStringEnumConverter))] public enum Known { A, B }
 
     public sealed class WithEnum { public Known K { get; set; } }
 

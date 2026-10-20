@@ -1,10 +1,9 @@
 {
-  "name": "ccf-typegen",
-  "version": "0.0.0",
+  "name": "@skm/ccf-typegen",
+  "version": "0.1.0",
   "description": "Generates TypeScript interfaces from CCF schemas",
   "type": "module",
   "license": "UNLICENSED",
-  "private": true,
   "bin": {
     "ccf-typegen": "./dist/cli.js"
   },
@@ -17,18 +16,37 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "LICENSE"
   ],
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
-    "@ccf/client": "0.0.0"
+    "@skm/ccf-client": "0.1.0"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.test.json --noEmit",
     "test": "tsc -p tsconfig.test.json --noEmit && vitest run",
     "test:conformance": "echo 'ccf-typegen: no conformance tests'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SamuraiKenshin/CCF.git",
+    "directory": "js/packages/typegen"
+  },
+  "homepage": "https://github.com/SamuraiKenshin/CCF#readme",
+  "keywords": [
+    "ccf",
+    "columnar",
+    "binary",
+    "api",
+    "json-alternative",
+    "typescript",
+    "codegen"
+  ],
+  "publishConfig": {
+    "access": "public"
   }
 }

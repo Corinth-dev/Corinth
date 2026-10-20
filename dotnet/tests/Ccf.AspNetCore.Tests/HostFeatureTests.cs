@@ -215,12 +215,43 @@ public class DiagnosticsTests
 
         await host.GetBytesAsync("/products", "application/vnd.ccf; features=d");
         await host.GetBytesAsync("/min/products", "application/vnd.ccf");
-        await host.GetBytesAsync("/products"); // JSON: not counted
 
         Assert.Contains(("ccf.responses", 1L, "format=ccf,features=d"), meter.Measurements);
         Assert.Contains(("ccf.responses", 1L, "format=ccf,features="), meter.Measurements);
         Assert.Equal(5266L + 9317L, meter.Measurements.Where(m => m.Instrument == "ccf.bytes_written").Sum(m => m.Value));
         Assert.DoesNotContain(meter.Measurements, m => m.Instrument == "ccf.encode_failures");
+    }
+
+    [Theory]
+    [InlineData("/products", null)]                                 // MVC, client did not ask for CCF
+    [InlineData("/min/products", null)]                             // minimal API, same
+    [InlineData("/json-only", "application/vnd.ccf")]               // [Produces] keeps CCF away even when asked
+    [InlineData("/products", "application/json, application/vnd.ccf")] // an explicit JSON range ranks first
+    [InlineData("/min/products", "application/json, application/vnd.ccf")]
+    public async Task Json_responses_of_ccf_capable_endpoints_are_counted_once_as_format_json(string path, string? accept)
+    {
+        await using var host = await TestHost.StartAsync();
+        using var meter = new MeterCapture();
+
+        await host.GetBytesAsync(path, accept);
+
+        Assert.Equal(new[] { ("ccf.responses", 1L, "format=json,features=") }, meter.Measurements.ToArray());
+    }
+
+    [Theory]
+    [InlineData("/unsupported")]       // the type has no schema: not a CCF-capable endpoint
+    [InlineData("/min/unsupported")]
+    [InlineData("/null")]              // no value, no schema
+    [InlineData("/min/null")]
+    public async Task Responses_of_endpoints_that_cannot_serve_ccf_are_not_counted(string path)
+    {
+        await using var host = await TestHost.StartAsync();
+        using var meter = new MeterCapture();
+
+        await host.GetBytesAsync(path);
+        await host.GetBytesAsync(path, "application/vnd.ccf");
+
+        Assert.Empty(meter.Measurements);
     }
 
     [Theory]
@@ -235,6 +266,8 @@ public class DiagnosticsTests
 
         Assert.Contains(meter.Measurements, m => m.Instrument == "ccf.encode_failures" && m.Value == 1);
         Assert.Contains(meter.Measurements, m => m.Instrument == "ccf.responses" && m.Tags == "format=json-fallback,features=");
+        // A fallback is one response, counted as json-fallback only (not also as json).
+        Assert.Single(meter.Measurements, m => m.Instrument == "ccf.responses");
         Assert.DoesNotContain(meter.Measurements, m => m.Instrument == "ccf.bytes_written");
 
         var warning = Assert.Single(host.Logs, l => l.Category == "Ccf" && l.Level == LogLevel.Warning);

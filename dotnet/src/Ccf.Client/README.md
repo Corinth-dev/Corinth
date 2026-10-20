@@ -1,6 +1,6 @@
 # Ccf.Client (.NET)
 
-An `HttpClient` helper that asks for CCF (`Accept: application/vnd.ccf; features=d`), decodes the response into your type, and falls back to JSON whenever anything goes wrong. It depends on `Ccf.Core`, `System.Net.Http.Json` and `Microsoft.Extensions.Logging.Abstractions`.
+An `HttpClient` helper that asks for CCF (`Accept: application/vnd.ccf; features=d`), decodes the response into your type, and falls back to JSON whenever anything goes wrong. It depends on `SKM.Ccf.Core`, `System.Net.Http.Json` and `Microsoft.Extensions.Logging.Abstractions`.
 
 ```csharp
 var order = await http.GetFromCcfAsync<Order>("/orders/7");          // extension method

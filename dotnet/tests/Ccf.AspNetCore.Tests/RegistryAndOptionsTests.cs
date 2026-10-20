@@ -11,7 +11,15 @@ namespace Ccf.AspNetCore.Tests;
 public class RegistryTests
 {
     private static CcfSchemaRegistry NewRegistry(Func<Type, CcfSchemaOptions, (CcfSchema?, string?)>? build = null, ILogger? logger = null) =>
-        new(CcfSchemaOptions.Default, new CcfSchemaOptions { PropertyNamingPolicy = null }, logger ?? NullLogger.Instance, build);
+        new(
+            new CcfSchemaOptions { JsonSerializerOptions = StringEnums },
+            new CcfSchemaOptions { PropertyNamingPolicy = null, JsonSerializerOptions = StringEnums },
+            logger ?? NullLogger.Instance,
+            build);
+
+    // The sample's enums are written as strings by its JSON options; mirror that here.
+    private static readonly System.Text.Json.JsonSerializerOptions StringEnums =
+        new() { Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() } };
 
     [Fact]
     public void Schemas_are_built_lazily_cached_and_found_by_id()

@@ -1,4 +1,4 @@
-import type { CcfField, CcfSchema } from "@ccf/client";
+import type { CcfField, CcfSchema } from "@skm/ccf-client";
 
 /** Options of {@link generateTypes}. */
 export interface TypegenOptions {

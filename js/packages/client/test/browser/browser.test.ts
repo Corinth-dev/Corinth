@@ -1,13 +1,18 @@
-import { type Browser, type Page, chromium } from "playwright-core";
+import { type Browser, type BrowserType, type Page, chromium, firefox, webkit } from "playwright-core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { type TestServer, startServer } from "./server.js";
+
+// One engine per run: CCF_BROWSER=chromium (default) | firefox | webkit. CI runs all three.
+const engines: Record<string, BrowserType> = { chromium, firefox, webkit };
+const engineName = process.env.CCF_BROWSER ?? "chromium";
+if (!(engineName in engines)) throw new Error(`CCF_BROWSER must be one of ${Object.keys(engines).join(", ")}, got "${engineName}"`);
 
 let server: TestServer;
 let browser: Browser;
 
 beforeAll(async () => {
   server = await startServer();
-  browser = await chromium.launch();
+  browser = await engines[engineName]!.launch();
 });
 
 afterAll(async () => {
@@ -30,7 +35,7 @@ async function run<T>(page: Page, body: string): Promise<T> {
   return (await page.evaluate(`(async () => { const ccf = await import("/dist/index.js"); ${body} })()`)) as T;
 }
 
-describe("in a real Chromium", () => {
+describe(`in a real browser (${engineName})`, () => {
   it("decodes every golden vector and raises the expected error for every invalid one", async () => {
     const { page, errors } = await newPage();
     const results = await run<{ failures: string[]; valid: number; invalid: number }>(page, `

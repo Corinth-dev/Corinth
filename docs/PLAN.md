@@ -21,7 +21,7 @@ Work through the phases in order. Tick a box only when its work is done and its 
   benchmarks/Ccf.Benchmarks/
 /js/
   package.json              workspace root
-  packages/client/          @ccf/client (src/, test/)
+  packages/client/          @skm/ccf-client (src/, test/)
   packages/typegen/         ccf-typegen CLI
   bench/
 ```
@@ -100,7 +100,7 @@ _Exit check passed (2026-10-20): all 15 vectors pass both directions on net8.0 a
 
 _Exit check passed (2026-10-20): `/products` serves JSON, plain CCF (bytes equal `v01`) and dictionary CCF (bytes equal `v02`); `/products/1001` equals `v05`, `/products/empty` `v06`, `/orders` `v04`, `/all-types` `v03`; minimal APIs return the same bytes. 199 AspNetCore tests pass on net8.0 and net10.0; re-run after the owner's phase 2 decisions (new Accept rule, naming per path, single enumeration, Vary)._
 
-## Phase 3 — `Ccf.Client` (.NET) and `@ccf/client` (TypeScript)
+## Phase 3 — `Ccf.Client` (.NET) and `@skm/ccf-client` (TypeScript)
 
 .NET
 - [x] `GetFromCcfAsync<T>` with Accept header, schema fetch + hash check + cache, single-flight per schema id, JSON retry rules (ARCHITECTURE §6.1).
@@ -135,11 +135,11 @@ _Exit check passed (2026-10-20): .NET and TypeScript decoders both pass all 15 v
 
 ## Phase 5 — Rollout readiness
 
-- [ ] Package metadata, READMEs and XML docs for the three NuGet packages and the npm package.
-- [ ] Opt-in guide: enabling CCF on selected endpoints, pre-registering schemas, configuration reference.
-- [ ] Dashboards/queries for the `Ccf` meter: share of responses served as CCF, fallbacks, encode failures, bytes saved.
-- [ ] Browser tests on WebKit and Firefox as well as Chromium (the pinned `playwright-core@1.56.1`; CI installs the matching browsers).
-- [ ] Versioning policy: format version stays 1; packages use SemVer; new features add letters, never change existing encodings.
+- [x] Package metadata, READMEs and XML docs for the three NuGet packages and the npm packages. _Version 0.1.0 (SemVer, one number for all packages); NuGet ids `SKM.Ccf.*`, npm `@skm/ccf-client` and `@skm/ccf-typegen`; LICENSE, Source Link symbols; `dotnet pack` and `npm pack` run in CI; throwaway consumer projects installed the .nupkg files and the tarballs and decoded a golden vector. Nothing is published (the owner publishes)._
+- [x] Opt-in guide: enabling CCF on selected endpoints, pre-registering schemas, configuration reference. _`docs/GUIDE.md`._
+- [x] Dashboards/queries for the `Ccf` meter: share of responses served as CCF, fallbacks, encode failures, bytes saved. _`docs/OBSERVABILITY.md` (PromQL panels and alerts); `ccf.responses{format=json}` added so the share of all responses can be computed; bytes saved is an estimate._
+- [x] Browser tests on WebKit and Firefox as well as Chromium (the pinned `playwright-core@1.56.1`; CI installs the matching browsers). _The test takes `CCF_BROWSER=chromium|firefox|webkit` and CI runs a three-engine matrix; Chromium passed locally; Firefox and WebKit could not be downloaded in the sandbox, so CI was their first run: PR #3, run 39439255203, `js-browser (chromium)`, `(firefox)` and `(webkit)` all passed (5 tests each)._
+- [x] Versioning policy: format version stays 1; packages use SemVer; new features add letters, never change existing encodings. _`docs/VERSIONING.md`._
 
 **Exit:** packages publishable; rollout guide reviewed by the project owner.
 
@@ -150,7 +150,17 @@ _Exit check passed (2026-10-20): .NET and TypeScript decoders both pass all 15 v
 
 ## Open questions
 
-_None open._ Ambiguities found before phase 0 were resolved by the project owner and recorded as SPEC §14 (clarifications v1.0.1). Add new questions here as they come up, with the phase and the SPEC section they concern.
+Ambiguities found before phase 0 were resolved by the project owner and recorded as SPEC §14 (clarifications v1.0.1). Add new questions here as they come up, with the phase and the SPEC section they concern.
+
+_None open._
+
+### Resolved by the project owner after phase 5
+
+1. **License.** The code is INTERNAL: stays UNLICENSED, published to a private feed only. A `LICENSE` file at the repository root says so (copied into each npm package, checked by CI; packed into each NuGet package as `PackageLicenseFile`); npm `license` is `UNLICENSED`. The repository publishes nothing: the owner publishes the prepared packages.
+2. **Package ids.** NuGet `SKM.Ccf.Core`, `SKM.Ccf.AspNetCore`, `SKM.Ccf.Client` (assemblies and namespaces stay `Ccf.*`); author `SamuraiKenshin`. npm: the requested `@SKM/ccf-client` and `@SKM/ccf-typegen` are **invalid** (npm rejects capital letters in new package names; checked with npm's own validator), so the packages are `@skm/ccf-client` and `@skm/ccf-typegen`. Confirm or choose another scope. The CLI command is still `ccf-typegen`.
+3. **Source Link** with the SDK built-in support (no package): `PublishRepositoryUrl`, `EmbedUntrackedSources`, `IncludeSymbols`, `SymbolPackageFormat=snupkg`; `ContinuousIntegrationBuild=true` set for all CI jobs. Checked: the pdb in the `.snupkg` carries the Source Link mapping to the repository.
+4. **Metrics.** `ccf.responses{format=json}` added for JSON responses of CCF-capable endpoints (MVC and minimal APIs; each response counted once, a fallback only as `json-fallback`), tests included. No JSON-size counter: "bytes saved" is documented as an estimate from the ratios in `docs/BENCHMARKS.md`.
+5. **Enums mirror System.Text.Json.** String-written enums (global converter, `[JsonConverter]` on the property or the type) are CCF enums with the names STJ writes; all others are integer columns with the underlying value (`int32` for `int`-backed enums; other underlying types map to their matching integer type). `[Flags]` written as strings and custom converters stay JSON-only. Changed behaviour: an enum with no string converter used to be an enum column and is now an integer column, so applications without `JsonStringEnumConverter` get new schema ids for such types.
 
 ### Resolved by the project owner after phase 3
 
@@ -160,7 +170,7 @@ _None open._ Ambiguities found before phase 0 were resolved by the project owner
 4. **Client behaviour**, documented in both client READMEs: `204 No Content` and an empty body give `null`; only a CCF format error or an unverifiable schema triggers the JSON retry, only for requests safe to repeat; HTTP error statuses and usage errors surface unchanged; the TS `int64: "number"` `RangeError` beyond 2^53 is intentional (JSON would silently lose precision) and is never retried.
 5. **End-to-end CI job is required** on pull requests: `js-e2e` runs on every PR, and an aggregate `required` job gives one check name to mark as required in branch protection (a repository setting that must be switched on by an admin; it cannot be done from the workflow). The command is in CLAUDE.md.
 
-Kept as decided earlier in phase 3: TS decimals default to `number` (`decimal: "string"` is exact); schema verification is strict (hash and canonical form, no cross-origin redirects, persistent entries re-verified); `ccf-typegen` depends on `@ccf/client`; the end-to-end test needs the .NET SDK and is a separate script and CI job; no on-disk `ICcfSchemaCache` ships.
+Kept as decided earlier in phase 3: TS decimals default to `number` (`decimal: "string"` is exact); schema verification is strict (hash and canonical form, no cross-origin redirects, persistent entries re-verified); `ccf-typegen` depends on `@skm/ccf-client`; the end-to-end test needs the .NET SDK and is a separate script and CI job; no on-disk `ICcfSchemaCache` ships.
 
 ### Resolved by the project owner after phase 2
 

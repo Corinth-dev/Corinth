@@ -47,6 +47,7 @@ internal sealed class CcfOkResult<T> : IResult
         CcfNegotiation.AddVaryAccept(httpContext.Response);
         if (!CcfNegotiation.TryNegotiate(httpContext.Request, out var features))
         {
+            CcfDiagnostics.RecordJson(httpContext);
             await TypedResults.Ok(_value).ExecuteAsync(httpContext);
             return;
         }
@@ -64,7 +65,7 @@ internal sealed class CcfOkResult<T> : IResult
         {
             services.GetRequiredService<ILoggerFactory>().CreateLogger("Ccf")
                 .LogWarning(e, "CCF encoding of schema {SchemaId} ({Type}) failed; serving JSON instead: {Reason}", schema.IdHex, type, e.Message);
-            CcfDiagnostics.RecordEncodeFailure();
+            CcfDiagnostics.RecordEncodeFailure(httpContext);
             await TypedResults.Ok(value).ExecuteAsync(httpContext);
             return;
         }
@@ -74,6 +75,6 @@ internal sealed class CcfOkResult<T> : IResult
         response.ContentType = CcfFeatureParser.ContentTypeFor(flags);
         response.ContentLength = buffer.WrittenCount;
         await response.Body.WriteAsync(buffer.WrittenMemory, httpContext.RequestAborted);
-        CcfDiagnostics.RecordServed(flags, buffer.WrittenCount);
+        CcfDiagnostics.RecordServed(httpContext, flags, buffer.WrittenCount);
     }
 }
