@@ -236,7 +236,61 @@ Sample: 500 products (id, name, price, status, stock), 142 distinct names, final
 
 Uncompressed dictionary-mode CCF is 16% smaller than Gzip JSON and within 8 bytes of Brotli JSON at maximum quality, with no decompression step. Where the dictionary-mode bytes go: name 2,323 (44%), price 1,423, stock 932, id 501, status 63, plus header and block prefixes.
 
-**Parse speed has not been measured yet**; it is the go/no-go gate in PLAN.md phase 4.
+### 9.1 Phase 4 benchmark numbers
+
+Measured 2026-10-20 on a shared 4-vCPU Intel Xeon 2.10 GHz VM; .NET 10.0.13 (BenchmarkDotNet 0.15.8, Release), Node 22.22.0, Chromium 141. A shared VM is noisy, so read the ratios. `net8.0` was not run. Method, datasets and all further columns (reflection baselines, brotli, allocations, encode) are in `docs/BENCHMARKS.md`; the go/no-go judgement is the project owner's.
+
+Datasets: products-500 (the vectors' sample), products-5k (same schema, ~300 distinct names), unique-strings-5k (name, email, note almost always unique), orders-5k (nullable object, object list, scalar list).
+
+**Size in bytes** (gzip is level 6)
+
+| Dataset | JSON | JSON gzip | JSON brotli 11 | CCF plain | CCF dictionary | dict ÷ gzip | dict ÷ JSON |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| products-500 | 39,721 | 6,558 | 5,254 | 9,317 | 5,266 | 80% | 13% |
+| products-5k | 402,516 | 64,197 | 49,709 | 95,583 | 43,917 | 68% | 11% |
+| unique-strings-5k | 857,655 | 170,385 | 124,783 | 603,787 | 532,003 | 312% | 62% |
+| orders-5k | 1,209,532 | 156,003 | 94,450 | 330,051 | 131,941 | 85% | 11% |
+
+**.NET decode** (wire bytes to `List<T>`; baseline is System.Text.Json source-gen)
+
+| Dataset | CCF dictionary | CCF plain | STJ source-gen | STJ reflection | JSON gzip | JSON brotli |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| products-500 | 36.5 µs | 48.4 µs | 196 µs | 207 µs | 250 µs | 264 µs |
+| products-5k | 0.31 ms | 0.53 ms | 1.88 ms | 2.10 ms | 3.45 ms | 2.78 ms |
+| unique-strings-5k | 1.17 ms | 1.40 ms | 2.70 ms | 2.38 ms | 4.82 ms | 4.41 ms |
+| orders-5k | 2.63 ms | 4.82 ms | 8.80 ms | 9.65 ms | 11.99 ms | 11.02 ms |
+
+(Gzip and brotli columns use source-gen after decompression.) CCF decode allocates 0.8x–1.3x of what STJ does.
+
+**.NET encode** (time relative to STJ source-gen = 1.00): CCF dictionary 0.85 / 0.70 / 2.99 / 1.07 and CCF plain 0.80 / 0.83 / 2.17 / 1.35 on products-500 / products-5k / unique-strings-5k / orders-5k. JSON + gzip (fastest) costs 4.11 / 4.44 / 9.47 / 3.49 and JSON + brotli (fastest) 2.82 / 3.28 / 6.86 / 3.21.
+
+**JavaScript decode** (median ms, wire bytes to JS values; CCF with default options)
+
+| Runtime | Dataset | JSON.parse | gunzip + JSON.parse | CCF plain | CCF dictionary | JSON.parse ÷ CCF dict | gzip JSON ÷ CCF dict |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Node 22 | products-500 | 0.160 | 0.914 | 0.155 | 0.109 | 1.47x | 8.40x |
+| Node 22 | products-5k | 1.985 | 4.885 | 1.398 | 0.933 | 2.13x | 5.24x |
+| Node 22 | unique-strings-5k | 2.343 | 9.753 | 3.466 | 3.187 | 0.74x | 3.06x |
+| Node 22 | orders-5k | 9.523 | 16.356 | 9.035 | 4.010 | 2.37x | 4.08x |
+| Chromium 141 | products-500 | 0.102 | 1.756 | 0.182 | 0.110 | 0.93x | 15.97x |
+| Chromium 141 | products-5k | 1.100 | 4.680 | 2.300 | 0.930 | 1.18x | 5.03x |
+| Chromium 141 | unique-strings-5k | 1.709 | 7.800 | 5.875 | 5.200 | 0.33x | 1.50x |
+| Chromium 141 | orders-5k | 6.050 | 12.533 | 10.200 | 3.267 | 1.85x | 3.84x |
+
+Chromium coarsens timers, so its small cases are quantised (0.93x on 500 rows is within noise).
+
+**Against the go criteria** (PLAN.md phase 4): CCF dictionary decode is faster than JSON parse plus gzip decompression on the 500-row and 5k product sets on all three runtimes (6.9x and 11x on .NET, 8.4x and 5.2x on Node, 16x and 5.0x on Chromium), and raw CCF dictionary size is at most gzip JSON size on both (80% and 68%).
+
+### 9.2 Known weak spot: data dominated by unique strings
+
+CCF's advantage comes from columns whose values repeat (dictionary mode), are small integers or deltas, or are fixed-width. A table whose bulk is long, mostly unique text gains little, and some measures get worse. On unique-strings-5k (name, email and free-text note almost always distinct):
+
+- **Size:** dictionary mode cannot apply (SPEC §8.1 rule `2k < p` fails), so strings are stored plain. CCF is 62% of raw JSON but **3.1x the size of gzip JSON** (532,003 vs 170,385 bytes) and 4.3x brotli 11. There is no compression in CCF, and JSON compressors exploit the redundancy inside text that CCF leaves in.
+- **JavaScript decode** is slower than plain `JSON.parse`: 0.74x in Node and 0.33x in Chromium. UTF-8 decoding of many strings dominates, and `TextDecoder` and `JSON.parse` are native and heavily tuned. It still beats gzip JSON (3.1x in Node, 1.5x in Chromium).
+- **.NET decode** still wins (0.44x of STJ time with the dictionary flag, 0.52x plain), but **.NET encode** is 2.2x (plain) to 3.0x (dictionary flag; the encoder first tries and abandons dictionaries) slower than STJ source-gen.
+- **Allocations** are close to STJ's (0.95x–1.09x).
+
+Consequences for rollout: opt in per endpoint, prefer endpoints with repetitive or numeric columns, and do not expect a size win over a compressing server for text-heavy payloads (content negotiation lets such endpoints stay on JSON). Possible mitigations, none decided: a per-endpoint or per-column opt-out, cheaper rejection of dictionary candidates in the encoder, and the numeric feature `n` in §10 (which does not help text). The compression-free design is a decision (DECISIONS #1, and compression is out of scope), so this limitation is accepted unless the owner reopens it.
 
 ## 10. Future
 
