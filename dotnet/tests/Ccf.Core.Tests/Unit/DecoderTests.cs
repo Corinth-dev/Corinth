@@ -484,6 +484,18 @@ public class DecoderTests
     }
 
     [Fact]
+    public void Datetime_accepts_at_least_0001_01_01_to_9999_12_31_UTC()
+    {
+        // SPEC §14.8: every platform must accept this whole range.
+        var schema = S("""{"name":"d","type":"datetime"}""");
+        const long first = -62135596800000L;   // 0001-01-01T00:00:00.000Z
+        const long last = 253402300799999L;    // 9999-12-31T23:59:59.999Z
+        var rows = (object?[])CcfDecoder.DecodeValue(new PayloadBuilder(schema, 2).Block(0, PayloadBuilder.Cat(ZZ(first), ZZ(last))).ToArray(), schema);
+        Assert.Equal(new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc), ((CcfObject)rows[0]!)["d"]);
+        Assert.Equal(new DateTime(9999, 12, 31, 23, 59, 59, 999, DateTimeKind.Utc), ((CcfObject)rows[1]!)["d"]);
+    }
+
+    [Fact]
     public void Datetime_outside_the_dotnet_range_is_ValueOutOfRange()
     {
         var schema = S("""{"name":"d","type":"datetime"}""");

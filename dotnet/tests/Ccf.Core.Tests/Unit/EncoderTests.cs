@@ -454,6 +454,64 @@ public class EncoderTests
         Assert.Equal(new DateTime(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc), a);
     }
 
+    // ---- enumeration ------------------------------------------------------------------------------------
+
+    private sealed class Counting<T> : IEnumerable<T>
+    {
+        private readonly IEnumerable<T> _source;
+
+        public Counting(IEnumerable<T> source)
+        {
+            _source = source;
+        }
+
+        public int Enumerations { get; private set; }
+
+        public IEnumerator<T> GetEnumerator()
+        {
+            Enumerations++;
+            return _source.GetEnumerator();
+        }
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+
+    public sealed class WithLazyList
+    {
+        public int Id { get; set; }
+
+        public IEnumerable<string> Items { get; set; } = Array.Empty<string>();
+    }
+
+    [Fact]
+    public void A_lazy_root_and_lazy_list_properties_are_each_enumerated_exactly_once_however_many_columns_there_are()
+    {
+        var schema = SchemaOf<List<WithLazyList>>();
+        var inner = new[] { new Counting<string>(new[] { "a", "b" }), new Counting<string>(new[] { "c" }) };
+        var rows = new Counting<WithLazyList>(new[]
+        {
+            new WithLazyList { Id = 1, Items = inner[0] },
+            new WithLazyList { Id = 2, Items = inner[1] },
+        });
+
+        var bytes = Encode(rows, schema, CcfFeatures.Dictionary).Bytes;
+
+        Assert.Equal(1, rows.Enumerations);
+        Assert.All(inner, c => Assert.Equal(1, c.Enumerations));
+        Assert.Equal(2, ((object?[])CcfDecoder.DecodeValue(bytes, schema)).Length);
+    }
+
+    [Fact]
+    public void A_failed_encode_still_enumerates_each_source_only_once()
+    {
+        var schema = SchemaOf<List<Dec2>>();
+        var rows = new Counting<Dec2>(new[] { new Dec2 { D = 1.234m } });
+
+        Fails(rows, schema);
+
+        Assert.Equal(1, rows.Enumerations);
+    }
+
     // ---- output ----------------------------------------------------------------------------------------
 
     [Fact]

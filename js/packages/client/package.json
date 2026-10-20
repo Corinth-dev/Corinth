@@ -1,0 +1,31 @@
+{
+  "name": "@ccf/client",
+  "version": "0.0.0",
+  "description": "CCF (Columnar Compact Format) client for browsers and Node 20+",
+  "type": "module",
+  "license": "UNLICENSED",
+  "private": true,
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsc -p tsconfig.json --noEmit && vitest run",
+    "test:conformance": "vitest run conformance",
+    "test:browser": "npm run build && vitest run --config vitest.browser.config.ts",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts"
+  }
+}

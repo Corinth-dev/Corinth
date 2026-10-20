@@ -43,18 +43,32 @@ TypeScript
 ```bash
 # .NET
 cd dotnet && dotnet build && dotnet test
-dotnet run -c Release --project benchmarks/Ccf.Benchmarks
+dotnet run -c Release --project benchmarks/Ccf.Benchmarks -- --filter "*"   # BenchmarkDotNet (about 15 min)
+cd dotnet && dotnet run -c Release --project benchmarks/Ccf.Benchmarks -- export   # datasets + size table into bench-data/
+cd js && npm run build && npm run bench && npm run bench:browser   # JS decode benchmarks (Node, Chromium)
 
 # TypeScript
 cd js && npm install && npm test
 npm run build
 
-# Golden-vector conformance tests (.NET: part of the default run; JS: excluded until phase 3 makes them pass)
+# Run the sample API (JSON by default; try `curl -H 'Accept: application/vnd.ccf; features=d' http://localhost:5000/products`)
+cd dotnet && dotnet run --project samples/Ccf.SampleApi
+
+# TypeScript: real Chromium (needs `npx playwright-core install chromium` once)
+cd js && npm run test:browser
+# TypeScript client against the real .NET sample API (needs the .NET SDK; builds and starts the sample itself).
+# The matching CI job `js-e2e` is required on pull requests (via the aggregate `required` check).
+cd js && npm run build && npm run test:e2e
+# Generate TypeScript interfaces from a schema
+cd js && npm run build && node packages/typegen/dist/cli.js ../test-vectors/schema-Product.json
+
+# Golden-vector conformance tests (part of the default run in both languages)
 cd dotnet && dotnet test --filter "Category=Conformance"
 cd js && npm run test:conformance
 
-# Decoder fuzzing: a 4-second smoke run is part of `dotnet test`; set the duration for a longer run
+# Decoder fuzzing: a short smoke run is part of both default test runs; set the duration for a longer run
 cd dotnet && CCF_FUZZ_SECONDS=600 dotnet test -c Release --filter "Category=Fuzz" --logger "console;verbosity=detailed"
+cd js/packages/client && CCF_FUZZ_SECONDS=600 npx vitest run test/fuzz.test.ts
 ```
 
 Update this section if you add commands.

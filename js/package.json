@@ -2,15 +2,24 @@
   "name": "ccf-workspace",
   "private": true,
   "type": "module",
-  "workspaces": ["packages/*"],
-  "engines": { "node": ">=20" },
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "test": "npm test --workspaces --if-present",
-    "test:conformance": "npm run test:conformance --workspaces --if-present"
+    "test:conformance": "npm run test:conformance --workspaces --if-present",
+    "test:browser": "npm run test:browser --workspaces --if-present",
+    "test:e2e": "npm run test:e2e --workspaces --if-present",
+    "bench": "node bench/node.mjs",
+    "bench:browser": "node bench/browser.mjs"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "playwright-core": "1.56.1",
     "typescript": "^5.0.0",
     "vitest": "^3.0.0"
   }

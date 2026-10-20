@@ -66,16 +66,12 @@ jobs:
           cache-dependency-path: js/package-lock.json
       - run: npm ci
       - run: npm run build
-      # Blocking: everything except the golden-vector conformance tests (CCF_TESTS=blocking is the default).
+      # Typecheck, unit tests, golden-vector conformance, client tests, a short fuzz run, package checks, typegen snapshots.
       - run: npm test
 
-  js-conformance:
-    # Non-blocking until phase 3 makes the vectors pass; then remove continue-on-error.
+  js-browser:
+    # The decoder, client, IndexedDB cache and the pure-JS SHA-256 fallback in a real Chromium.
     runs-on: ubuntu-latest
-    continue-on-error: true
-    strategy:
-      matrix:
-        node: [20, 22]
     defaults:
       run:
         working-directory: js
@@ -83,8 +79,69 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node }}
+          node-version: 22
           cache: npm
           cache-dependency-path: js/package-lock.json
       - run: npm ci
-      - run: npm run test:conformance
+      # Installs the browser build that matches the pinned playwright-core version.
+      - run: npx --no-install playwright-core install --with-deps chromium
+      - run: npm run test:browser
+
+  js-e2e:
+    # The TypeScript client against the real .NET sample API. Required on pull requests (see the `required` job).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: js/package-lock.json
+      - run: dotnet build -c Release samples/Ccf.SampleApi -f net10.0
+        working-directory: dotnet
+      - run: npm ci
+        working-directory: js
+      - run: npm run build
+        working-directory: js
+      - run: npm run test:e2e
+        working-directory: js
+
+  required:
+    # One stable check name for branch protection: mark "required" as a required status check
+    # (Settings > Branches). It fails unless every job below succeeded, so the end-to-end job
+    # cannot be skipped or ignored on a pull request.
+    if: always()
+    needs: [dotnet, js, js-browser, js-e2e]
+    runs-on: ubuntu-latest
+    steps:
+      - name: All required jobs succeeded
+        run: |
+          echo '${{ toJSON(needs) }}'
+          test "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}" = "false"
+
+  fuzz-nightly-js:
+    # Thirty minutes of TypeScript decoder mutation fuzzing; only on the nightly schedule or when started by hand.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: js/packages/client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: js/package-lock.json
+      - run: npm ci
+        working-directory: js
+      - name: Fuzz the TypeScript decoder
+        env:
+          CCF_FUZZ_SECONDS: "1800"
+        run: npx vitest run test/fuzz.test.ts

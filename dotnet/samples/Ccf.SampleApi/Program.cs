@@ -1,4 +1,8 @@
-var builder = WebApplication.CreateBuilder(args);
-var app = builder.Build();
-app.MapGet("/", () => "CCF sample API (phase 0 placeholder)");
-app.Run();
+using Ccf.SampleApi;
+
+SampleApp.Create(args).Run();
+
+/// <summary>Entry point marker so integration tests can use <c>WebApplicationFactory&lt;Program&gt;</c>.</summary>
+public partial class Program
+{
+}
