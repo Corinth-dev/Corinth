@@ -151,24 +151,29 @@ If any reachable member is unsupported, the whole response type is unsupported a
 
 ### 6.1 Shared behaviour (.NET and TypeScript)
 
-1. Send `Accept: application/vnd.ccf; features=d, application/json;q=0.5`.
-2. If the response `Content-Type` is JSON → parse as JSON (fallback is normal, not an error).
-3. If CCF → read the schema id from bytes 4–7; get the schema from the cache, or fetch `GET /ccf/schemas/{id}` once (concurrent requests for the same id share one fetch), verify the hash of the returned text equals the id, cache it.
-4. Decode. On a CCF format error or a failed schema fetch → log it and **repeat the original request once with `Accept: application/json`**. Only requests that are safe to repeat (GET, HEAD, or explicitly marked idempotent) are retried; otherwise the error surfaces.
-5. Schema cache: in memory by default; pluggable (`ICcfSchemaCache` / `SchemaCache` interface) for persistent storage (IndexedDB in browsers, disk on .NET).
+1. Send `Accept: application/vnd.ccf; features=d, application/json;q=0.5` (plain `application/vnd.ccf, application/json;q=0.5` when the client cannot read dictionaries).
+2. If the response `Content-Type` is not CCF → parse as JSON (fallback is normal, not an error). An empty body or `204` is a `null` result.
+3. If CCF → read the schema id from bytes 4–7; get the schema from the cache, or fetch `GET {prefix}/{id}` once (concurrent requests for the same id share one fetch), verify that the returned text hashes to the id **and** is in canonical form, cache it. The schema URL is built from the origin of the request; a schema that ends up on another origin (redirect) is refused (SPEC §2.4). A cache read is verified again, so a corrupted persistent cache is ignored and refetched.
+4. Decode. On a CCF format error or a failed schema fetch (HTTP error, network error, unknown id, hash mismatch, invalid schema) → log it and **repeat the original request once with `Accept: application/json`**. Only requests that are safe to repeat (GET, HEAD, or explicitly marked idempotent; never a streamed body) are retried; otherwise the error surfaces. A failed fetch is not remembered: the next request tries again. Errors that are not CCF failures are never retried: an HTTP error status, a usage error such as a target type that cannot receive the schema (.NET `InvalidOperationException`), or the `RangeError` of `int64: "number"`.
+5. Schema cache: in memory by default; pluggable for persistent storage (IndexedDB in browsers, disk on .NET). Entries never expire (the id is a content hash). A failing cache never fails a request.
 
 ### 6.2 .NET client (`Ccf.Client`)
 
-- `HttpClient.GetFromCcfAsync<T>(string uri, CancellationToken)` mirroring `GetFromJsonAsync<T>`.
+- `CcfClient(HttpClient, CcfClientOptions?)` holds the schema cache and the single-flight map; `client.GetAsync<T>(uri, ct)` and `client.SendAsync<T>(HttpRequestMessage, ct)` (retry only for GET/HEAD or when `CcfClientOptions.IsIdempotent` says so; the request is captured first so it can be sent again).
+- `HttpClient.GetFromCcfAsync<T>(string uri, CancellationToken)` mirrors `GetFromJsonAsync<T>` and uses one default `CcfClient` per `HttpClient`; create a `CcfClient` for custom options.
+- `CcfClientOptions`: `Features`, `SchemaPathPrefix`, `SchemaCache` (`ICcfSchemaCache`, async `GetAsync`/`SetAsync`, default `InMemoryCcfSchemaCache`), `JsonSerializerOptions` (JSON path and the naming policy used to match properties; default web defaults), `Limits`, `IsIdempotent`, `Log` (a callback: the package takes no logging dependency).
+- Failures to obtain a schema are `CcfSchemaFetchException` (client-side, not a format error); an error status is `HttpRequestException`.
 - Decodes into `T` by matching schema field names to properties with the same naming rules as the server (§5.2). Schema fields with no matching property are skipped (block length); properties with no matching field keep their default. Matching is by exact JSON name first, then case-insensitively. Narrowing into a smaller CLR type is range-checked (`ValueOutOfRange`). A CLR type that cannot receive the schema (incompatible property type, abstract type, several rows into a single object) raises `InvalidOperationException`: a usage error, not a format error. Datetimes outside the .NET `DateTime` range (years 1–9999) are rejected by the .NET decoder with `ValueOutOfRange`.
 - Decimals decode exactly to `decimal`; datetimes to `DateTimeOffset` (offset 0) or `DateTime` (Kind Utc).
 
 ### 6.3 TypeScript client (`@ccf/client`)
 
-- Runs in browsers and Node 20+; ES modules; zero runtime dependencies; uses `DataView`, `TextDecoder("utf-8", { fatal: true })`.
-- `createCcfClient({ baseUrl, fetch?, schemaCache?, features?, int64?, decimal? })` → `client.get<T>(path, init?)`; lower level `decode(bytes, schema, options)`, `readSchemaId(bytes)`.
-- Value mapping: int64/uint64 → `number` by default, throwing a `RangeError` if a value is beyond `Number.MAX_SAFE_INTEGER`; option `int64: "bigint"`. Decimal → `number` by default; option `decimal: "string"` for exact values. Datetime → `Date`. Guid → lowercase string. Enum → member name string.
-- `ccf-typegen` CLI: fetches or reads schemas and writes TypeScript interfaces.
+- Runs in browsers and Node 20+; ES modules; zero runtime dependencies; uses `DataView`, `TextDecoder("utf-8", { fatal: true, ignoreBOM: true })` (the BOM is data, not a marker).
+- `createCcfClient({ baseUrl?, fetch?, schemaCache?, features?, schemaPathPrefix?, int64?, decimal?, limits?, isIdempotent?, log? })` → `client.get<T>(path, init?)`, `client.request<T>(path, { method, body, idempotent, … })`, `client.getSchema(id, origin)`. Lower level: `decode(bytes, schema, options)` (synchronous), `readSchemaId(bytes)`, `parseSchema(text)` (**async**: it hashes with WebCrypto, falling back to a built-in pure-JS SHA-256 where `crypto.subtle` is unavailable, such as insecure browser origins), `verifySchema(id, text)`.
+- Schema caches implement `CcfSchemaCache { get(id), set(id, canonicalJson) }` (sync or async, storing the canonical text, which is re-verified when read): `MemorySchemaCache` (default) and `IndexedDbSchemaCache`.
+- Errors: `CcfFormatError` (same code strings as .NET), `CcfSchemaError` (invalid schema, SPEC §14.3), `CcfSchemaFetchError`, `CcfHttpError`.
+- Value mapping: int64/uint64 → `number` by default, throwing a `RangeError` if a value is beyond `Number.MAX_SAFE_INTEGER`; option `int64: "bigint"`. Decimal → `number` by default (may round for values beyond 2^53 or many digits); option `decimal: "string"` for exact values with `scale` digits. Datetime → `Date` (values outside the range of `Date`, ±8.64e15 ms, are `ValueOutOfRange`). Guid → lowercase string. Enum → member name string. `null` for absent values. A single-object payload decodes to an object, a table to an array of objects.
+- `ccf-typegen <schema file | - | URL> [-o out.ts] [--name Root] [--int64 number|bigint] [--decimal number|string]` reads a schema (a URL ending in an id is verified against it) and writes TypeScript interfaces: the root interface is named after the schema, nested objects become `<Parent><Field>` and object list elements `<Parent><Field>Item`; `--int64`/`--decimal` should match the client options.
 
 ## 7. Flows
 

@@ -103,22 +103,24 @@ _Exit check passed (2026-10-20): `/products` serves JSON, plain CCF (bytes equal
 ## Phase 3 — `Ccf.Client` (.NET) and `@ccf/client` (TypeScript)
 
 .NET
-- [ ] `GetFromCcfAsync<T>` with Accept header, schema fetch + hash check + cache, single-flight per schema id, JSON retry rules (ARCHITECTURE §6.1).
-- [ ] Tests against the sample API: CCF path, JSON path, schema fetched once for many requests, corrupted payload → JSON retry.
+- [x] `GetFromCcfAsync<T>` with Accept header, schema fetch + hash check + cache, single-flight per schema id, JSON retry rules (ARCHITECTURE §6.1).
+- [x] Tests against the sample API: CCF path, JSON path, schema fetched once for many requests, corrupted payload → JSON retry.
 
 TypeScript
-- [ ] Reader with bounds checks and `CcfFormatError` (codes identical to .NET).
-- [ ] Schema parse, canonicalize, SHA-256 id. Parsing is async and stores the precomputed id; decoding stays synchronous. Invalid schemas raise `CcfSchemaError` (SPEC §14.3).
-- [ ] SHA-256 via WebCrypto (`crypto.subtle`) with a small pure-JS fallback for contexts where it is unavailable (insecure browser origins). Used only for schema verification, never on the hot path; no dependency.
-- [ ] Wire `test/support/subject.ts` to the decoder, replace the stubs, and drop the default conformance exclusion.
-- [ ] One unit test per SPEC §14 clarification that applies to the decoder (rules 1, 2, 3, 5, 7).
-- [ ] Decoder for all types, options `int64` and `decimal` (ARCHITECTURE §6.3).
-- [ ] All 15 vectors pass (decode and errors) in Node; one browser run (Playwright or vitest browser mode).
-- [ ] `createCcfClient` with schema cache, single-flight, JSON retry; pluggable cache interface; an IndexedDB cache implementation.
-- [ ] `ccf-typegen`: schema JSON or URL → `.ts` interfaces; snapshot tests for the 3 vector schemas.
-- [ ] Package builds to ESM + `.d.ts`; zero runtime dependencies.
+- [x] Reader with bounds checks and `CcfFormatError` (codes identical to .NET).
+- [x] Schema parse, canonicalize, SHA-256 id. Parsing is async and stores the precomputed id; decoding stays synchronous. Invalid schemas raise `CcfSchemaError` (SPEC §14.3).
+- [x] SHA-256 via WebCrypto (`crypto.subtle`) with a small pure-JS fallback for contexts where it is unavailable (insecure browser origins). Used only for schema verification, never on the hot path; no dependency.
+- [x] Wire `test/support/subject.ts` to the decoder, replace the stubs, and drop the default conformance exclusion.
+- [x] One unit test per SPEC §14 clarification that applies to the decoder (rules 1, 2, 3, 5, 7).
+- [x] Decoder for all types, options `int64` and `decimal` (ARCHITECTURE §6.3).
+- [x] All 15 vectors pass (decode and errors) in Node; one browser run (Playwright or vitest browser mode). _Browser run: `npm run test:browser` drives a real Chromium through `playwright-core` (decoder over every vector, client flow, real IndexedDB cache across a page reload, pure-JS SHA-256 with `crypto.subtle` removed, corrupted-payload fallback)._
+- [x] `createCcfClient` with schema cache, single-flight, JSON retry; pluggable cache interface; an IndexedDB cache implementation.
+- [x] `ccf-typegen`: schema JSON or URL → `.ts` interfaces; snapshot tests for the 3 vector schemas.
+- [x] Package builds to ESM + `.d.ts`; zero runtime dependencies.
 
 **Exit:** both clients decode every vector identically; end-to-end test from the TS client against the sample API passes.
+
+_Exit check passed (2026-10-20): .NET and TypeScript decoders both pass all 15 vectors (decode and errors) against the same `manifest.json`; the .NET client and the TS client decode the sample API's responses to exactly the vectors' expected values (`npm run test:e2e` runs the TS client against the real .NET sample: 7 tests). Tests: .NET client 45 per framework; TypeScript 254 (client) + 28 (typegen) in Node 22 and, locally via `npx node@20`, in Node 20.20; 5 browser tests in Chromium._
 
 ## Phase 4 — Benchmarks (go / no-go)
 
@@ -146,6 +148,19 @@ TypeScript
 ## Open questions
 
 _None open._ Ambiguities found before phase 0 were resolved by the project owner and recorded as SPEC §14 (clarifications v1.0.1). Add new questions here as they come up, with the phase and the SPEC section they concern.
+
+### Decisions taken in phase 3 (please confirm or overrule)
+
+1. **No logging dependency in `Ccf.Client`.** `Microsoft.Extensions.Logging.Abstractions` would be a new package, so the client reports through a `CcfClientOptions.Log` callback (`Action<string, Exception?>`); the TS client has the equivalent `log` option.
+2. **Datetime range per platform.** The wire allows any int64 millisecond value. The .NET decoder rejects values outside `DateTime` (years 1–9999) and the TS decoder values outside `Date` (±8.64e15 ms), both with `ValueOutOfRange`.
+3. **TS decimals default to `number`**, which can round beyond 2^53 or for many digits; `decimal: "string"` is exact. int64/uint64 default to `number` with a `RangeError` beyond `Number.MAX_SAFE_INTEGER` (that `RangeError` is not a CCF failure and is never retried as JSON).
+4. **What triggers the JSON retry.** Only a CCF format error or a schema that cannot be fetched or verified, and only for requests safe to repeat (GET/HEAD, or declared idempotent; never a streamed body). HTTP error statuses and usage errors (target type cannot receive the schema) surface unchanged. If the retry fails, its error surfaces.
+5. **Empty results.** `204 No Content` and an empty body are `null` (`GetFromJsonAsync` would throw on them).
+6. **Schema verification is strict.** The returned text must hash to the id *and* be canonical; a schema that comes back after a cross-origin redirect is refused; a persistent cache entry is verified again when read; a cache that fails is ignored.
+7. **`playwright-core@1.56.1`** (dev dependency, pinned to the Chromium revision preinstalled in the sandbox) drives the browser run; CI installs Chromium with `npx playwright-core install`. Only Chromium is exercised, so IndexedDB is verified in Chromium only.
+8. **`ccf-typegen` depends on `@ccf/client`** (a workspace package) to parse and verify schemas; `@ccf/client` itself has no dependencies. Generated names: root = PascalCase schema name, nested objects `<Parent><Field>`, object list elements `<Parent><Field>Item`.
+9. **The end-to-end test needs the .NET SDK** (it builds and starts the sample API); it is a separate script (`test:e2e`) and CI job, not part of `npm test`. The JS conformance CI job is no longer non-blocking; `npm test` includes the vectors.
+10. **No `ICcfSchemaCache` implementation on disk** ships with `Ccf.Client`; the interface is async so one can be added.
 
 ### Resolved by the project owner after phase 2
 
