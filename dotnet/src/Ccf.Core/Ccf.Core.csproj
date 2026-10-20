@@ -3,4 +3,8 @@
     <RootNamespace>Ccf</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Ccf.Core.Tests" />
+    <InternalsVisibleTo Include="Ccf.Benchmarks" />
+  </ItemGroup>
 </Project>

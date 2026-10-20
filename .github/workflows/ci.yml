@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    - cron: "17 3 * * *" # nightly: the one-hour decoder fuzz run (job `fuzz-nightly`)
+  workflow_dispatch:
 
 jobs:
   dotnet:
@@ -19,16 +22,17 @@ jobs:
             8.0.x
             10.0.x
       - run: dotnet build -c Release
-      # Blocking: everything except the golden-vector conformance tests (default filter in Directory.Build.props).
+      # Includes the golden-vector conformance tests and a short (4 s) fuzz smoke run.
       - name: Test (net8.0)
         run: dotnet test -c Release --no-build -f net8.0
       - name: Test (net10.0)
         run: dotnet test -c Release --no-build -f net10.0
 
-  dotnet-conformance:
-    # Non-blocking until phase 1 makes the vectors pass; then remove continue-on-error and the default filter.
+  fuzz-nightly:
+    # One hour of decoder mutation fuzzing; only on the nightly schedule or when started by hand.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    continue-on-error: true
+    timeout-minutes: 90
     defaults:
       run:
         working-directory: dotnet
@@ -40,8 +44,10 @@ jobs:
             8.0.x
             10.0.x
       - run: dotnet build -c Release
-      - run: dotnet test -c Release --no-build -f net8.0 --filter "Category=Conformance"
-      - run: dotnet test -c Release --no-build -f net10.0 --filter "Category=Conformance"
+      - name: Fuzz the decoder for one hour
+        env:
+          CCF_FUZZ_SECONDS: "3600"
+        run: dotnet test -c Release --no-build -f net10.0 --filter "Category=Fuzz" --logger "console;verbosity=detailed"
 
   js:
     runs-on: ubuntu-latest

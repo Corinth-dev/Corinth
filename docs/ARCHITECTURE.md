@@ -95,6 +95,8 @@ Verify early (phase 2) how ASP.NET Core's `MediaType` matching treats the `featu
 
 - One pass per column over the row list, writing into the buffer; the column's block length is known only afterwards, so each block is written into a scratch region and its length prefix is written before copying, or space is reserved and the body shifted. Pick whichever profiles faster; both must produce the shortest uvarint.
 - Property values are read through compiled accessors (expression trees or a source generator), cached per type in the registry — no reflection per value.
+- API shape: `new CcfEncoder(CcfSchemaOptions? options, double dictionaryThreshold = 0.5)` (the options carry the naming rules used to build the schema) and `Encode(object value, CcfSchema schema, CcfFeatures features, IBufferWriter<byte> output, CcfLimits? limits)`, which returns the header flags actually produced (the Content-Type derives from them via `CcfFeatureParser.ContentTypeFor`). The payload is built completely in a pooled buffer and only then copied to `output`.
+- Internally each column is first extracted into a row-aligned `ColumnData` (typed arrays plus a presence array) and then written by a CLR-independent writer; the decoder produces the same `ColumnData`, which the untyped value tree and the typed binder both read. Accessors are compiled once per (canonical schema text, CLR type).
 - Dictionary decision per string column: collect distinct values with a `Dictionary<string,int>` (ordinal comparer), which also yields first-appearance order.
 - Allocation goal: zero allocations per value; pooled buffers; `Span<byte>`/`stackalloc` for varints.
 
@@ -148,7 +150,7 @@ If any reachable member is unsupported, the whole response type is unsupported a
 ### 6.2 .NET client (`Ccf.Client`)
 
 - `HttpClient.GetFromCcfAsync<T>(string uri, CancellationToken)` mirroring `GetFromJsonAsync<T>`.
-- Decodes into `T` by matching schema field names to properties with the same naming rules as the server (§5.2). Schema fields with no matching property are skipped (block length); properties with no matching field keep their default.
+- Decodes into `T` by matching schema field names to properties with the same naming rules as the server (§5.2). Schema fields with no matching property are skipped (block length); properties with no matching field keep their default. Matching is by exact JSON name first, then case-insensitively. Narrowing into a smaller CLR type is range-checked (`ValueOutOfRange`). A CLR type that cannot receive the schema (incompatible property type, abstract type, several rows into a single object) raises `InvalidOperationException`: a usage error, not a format error. Datetimes outside the .NET `DateTime` range (years 1–9999) are rejected by the .NET decoder with `ValueOutOfRange`.
 - Decimals decode exactly to `decimal`; datetimes to `DateTimeOffset` (offset 0) or `DateTime` (Kind Utc).
 
 ### 6.3 TypeScript client (`@ccf/client`)
