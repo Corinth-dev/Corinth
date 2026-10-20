@@ -10,7 +10,7 @@ Work through the phases in order. Tick a box only when its work is done and its 
 /test-vectors/              golden vectors (read-only)
 /dotnet/
   Ccf.sln
-  Directory.Build.props     net8.0;net10.0, nullable, warnings as errors, LangVersion latest
+  Directory.Build.props     net10.0, nullable, warnings as errors, LangVersion latest
   src/Ccf.Core/
   src/Ccf.AspNetCore/
   src/Ccf.Client/
@@ -34,7 +34,7 @@ Work through the phases in order. Tick a box only when its work is done and its 
 - [x] .NET test helper that loads `test-vectors/manifest.json` and yields one xUnit theory case per vector.
 - [x] Same helper for vitest in `js/packages/client`.
 - [x] Canonical-JSON comparer for decoded values (rules in `test-vectors/README.md` and SPEC §14.7) in both languages.
-- [x] CI workflow (GitHub Actions or equivalent): build + test .NET on net8.0 and net10.0, test JS on Node 20 and 22. Conformance tests are tagged (`Category=Conformance` in .NET, `*.conformance.test.ts` in vitest) and run in separate non-blocking jobs until phase 1 (.NET) and phase 3 (JS). _Written and YAML-validated; first run on GitHub pending._
+- [x] CI workflow (GitHub Actions or equivalent): build + test .NET on net8.0 and net10.0 (net8.0 dropped in phase 5), test JS on Node 20 and 22. Conformance tests are tagged (`Category=Conformance` in .NET, `*.conformance.test.ts` in vitest) and run in separate non-blocking jobs until phase 1 (.NET) and phase 3 (JS). _Written and YAML-validated; first run on GitHub pending._
 
 Conventions set up in phase 0:
 - `dotnet test` and `npm test` run everything except the conformance tests. Run those with `dotnet test --filter "Category=Conformance"` and `npm run test:conformance` (in `js/`).
@@ -157,7 +157,7 @@ _None open._
 ### Resolved by the project owner after phase 5
 
 1. **License.** The code is INTERNAL: stays UNLICENSED, published to a private feed only. A `LICENSE` file at the repository root says so (copied into each npm package, checked by CI; packed into each NuGet package as `PackageLicenseFile`); npm `license` is `UNLICENSED`. The repository publishes nothing: the owner publishes the prepared packages.
-2. **Package ids.** NuGet `SKM.Ccf.Core`, `SKM.Ccf.AspNetCore`, `SKM.Ccf.Client` (assemblies and namespaces stay `Ccf.*`); author `SamuraiKenshin`. npm: the requested `@SKM/ccf-client` and `@SKM/ccf-typegen` are **invalid** (npm rejects capital letters in new package names; checked with npm's own validator), so the packages are `@skm/ccf-client` and `@skm/ccf-typegen`. Confirm or choose another scope. The CLI command is still `ccf-typegen`.
+2. **Package ids.** NuGet `SKM.Ccf.Core`, `SKM.Ccf.AspNetCore`, `SKM.Ccf.Client` (assemblies and namespaces stay `Ccf.*`); author `SamuraiKenshin`. npm: the requested `@SKM/ccf-client` and `@SKM/ccf-typegen` are **invalid** (npm rejects capital letters in new package names; checked with npm's own validator), so the packages are `@skm/ccf-client` and `@skm/ccf-typegen`. **Scope confirmed by the owner.** The CLI command is still `ccf-typegen`.
 3. **Source Link** with the SDK built-in support (no package): `PublishRepositoryUrl`, `EmbedUntrackedSources`, `IncludeSymbols`, `SymbolPackageFormat=snupkg`; `ContinuousIntegrationBuild=true` set for all CI jobs. Checked: the pdb in the `.snupkg` carries the Source Link mapping to the repository.
 4. **Metrics.** `ccf.responses{format=json}` added for JSON responses of CCF-capable endpoints (MVC and minimal APIs; each response counted once, a fallback only as `json-fallback`), tests included. No JSON-size counter: "bytes saved" is documented as an estimate from the ratios in `docs/BENCHMARKS.md`.
 5. **Enums mirror System.Text.Json.** String-written enums (global converter, `[JsonConverter]` on the property or the type) are CCF enums with the names STJ writes; all others are integer columns with the underlying value (`int32` for `int`-backed enums; other underlying types map to their matching integer type). `[Flags]` written as strings and custom converters stay JSON-only. Changed behaviour: an enum with no string converter used to be an enum column and is now an integer column, so applications without `JsonStringEnumConverter` get new schema ids for such types.

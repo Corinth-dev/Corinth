@@ -184,16 +184,7 @@ internal static class CcfTypeModel
         var result = new (string, FieldInfo)[fields.Length];
         for (var i = 0; i < fields.Length; i++)
         {
-            // JsonStringEnumMemberNameAttribute exists from .NET 9; look it up by name so net8.0 still builds.
-            var name = fields[i].Name;
-            foreach (var attr in fields[i].GetCustomAttributes())
-            {
-                if (attr.GetType().FullName == "System.Text.Json.Serialization.JsonStringEnumMemberNameAttribute"
-                    && attr.GetType().GetProperty("Name")?.GetValue(attr) is string custom)
-                {
-                    name = custom;
-                }
-            }
+            var name = fields[i].GetCustomAttribute<JsonStringEnumMemberNameAttribute>()?.Name ?? fields[i].Name;
 
             result[i] = (name, fields[i]);
         }
