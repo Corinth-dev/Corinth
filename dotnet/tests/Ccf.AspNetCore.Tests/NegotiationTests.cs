@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Net.Http.Headers;
 using Xunit;
 
@@ -62,17 +63,36 @@ public class NegotiationTests
         Assert.Equal(expectedFeatures, features);
     }
 
+    // Wildcards never compete: an explicit application/vnd.ccf with q > 0 wins unless a higher-q explicit JSON range exists.
     [Theory]
     [InlineData("application/vnd.ccf, */*;q=0.1", true)]
     [InlineData("application/vnd.ccf; features=d, */*", true)]
     [InlineData("*/*;q=0.1, application/vnd.ccf", true)]
-    [InlineData("*/*;q=0.9, application/vnd.ccf;q=0.2", false)] // the wildcard wins by quality when the header is respected
-    public void A_wildcard_makes_mvc_ignore_the_header_unless_RespectBrowserAcceptHeader_is_set(string accept, bool ccfWhenRespected)
-    {
-        Assert.False(CcfNegotiation.TryNegotiate(Request(accept), out _));
-        Assert.False(CcfNegotiation.TryNegotiate(Request(accept), respectBrowserAcceptHeader: false, out _));
-        Assert.Equal(ccfWhenRespected, CcfNegotiation.TryNegotiate(Request(accept), respectBrowserAcceptHeader: true, out _));
-    }
+    [InlineData("*/*;q=0.9, application/vnd.ccf;q=0.2", true)]
+    [InlineData("application/*, application/vnd.ccf;q=0.5", true)]
+    [InlineData("application/json, application/vnd.ccf;q=0.5", false)]
+    [InlineData("application/json, application/vnd.ccf;q=0.5, */*", false)]
+    [InlineData("application/json;q=0.4, application/vnd.ccf;q=0.5, */*", true)]
+    [InlineData("application/vnd.ccf;q=0, */*", false)]
+    [InlineData("application/vnd.ccf;q=0, application/vnd.ccf; features=d, */*", true)]
+    [InlineData("*/*", false)]
+    [InlineData("*/*;q=0.9", false)]
+    [InlineData("application/*", false)]
+    [InlineData("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", false)]
+    public void Wildcards_never_hide_or_beat_an_explicit_ccf_range(string accept, bool expectedCcf) =>
+        Assert.Equal(expectedCcf, CcfNegotiation.TryNegotiate(Request(accept), out _));
+
+    [Theory]
+    [InlineData(null, false)]
+    [InlineData("application/json", false)]
+    [InlineData("*/*", false)]
+    [InlineData("application/vnd.ccf", true)]
+    [InlineData("application/vnd.ccf;q=0", true)]
+    [InlineData("APPLICATION/VND.CCF; features=d", true)]
+    [InlineData("application/json, application/vnd.ccf;q=0.1", true)]
+    [InlineData("application/vnd.ccf.other", true)] // a substring match is enough: only used to decide Vary
+    public void Mentions_is_true_for_any_quality(string? accept, bool expected) =>
+        Assert.Equal(expected, CcfNegotiation.Mentions(Request(accept)));
 
     [Fact]
     public void Features_come_from_the_range_that_won()
@@ -166,8 +186,16 @@ public class CcfMediaTypeMatchingTests
     public async Task Mvc_offers_the_accept_range_and_the_stock_formatter_logic_rejects_a_features_parameter()
     {
         var log = new List<(string Offered, bool BaseWouldWrite)>();
-        await using var host = await SampleHost.StartAsync(b =>
-            b.Services.Configure<Microsoft.AspNetCore.Mvc.MvcOptions>(o => o.OutputFormatters.Insert(0, new Probe(log))));
+        // Put MVC's stock selector back (CCF's wrapper would pick the CCF formatter without consulting the others),
+        // so the probe observes what MVC itself offers.
+        await using var host = await TestHost.StartAsync(services: s =>
+        {
+            s.Replace(ServiceDescriptor.Singleton<Microsoft.AspNetCore.Mvc.Infrastructure.OutputFormatterSelector>(sp =>
+                new Microsoft.AspNetCore.Mvc.Infrastructure.DefaultOutputFormatterSelector(
+                    sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<Microsoft.AspNetCore.Mvc.MvcOptions>>(),
+                    sp.GetRequiredService<Microsoft.Extensions.Logging.ILoggerFactory>())));
+            s.Configure<Microsoft.AspNetCore.Mvc.MvcOptions>(o => o.OutputFormatters.Insert(0, new Probe(log)));
+        });
 
         await host.GetAsync("/products", "application/vnd.ccf");
         await host.GetAsync("/products", "application/vnd.ccf; features=d, application/json;q=0.5");

@@ -33,11 +33,13 @@ public sealed class ProductsController : ControllerBase
 public sealed class MoreController : ControllerBase
 {
     private readonly SampleData _data;
+    private readonly EnumerationCounter _counter;
 
     /// <summary>Creates the controller.</summary>
-    public MoreController(SampleData data)
+    public MoreController(SampleData data, EnumerationCounter counter)
     {
         _data = data;
+        _counter = counter;
     }
 
     /// <summary>Orders: nested object, list of objects, list of strings, nulls.</summary>
@@ -63,4 +65,22 @@ public sealed class MoreController : ControllerBase
     /// <summary>An IActionResult whose value is a LINQ iterator: served through IEnumerable&lt;T&gt;.</summary>
     [HttpGet("/lazy-products")]
     public IActionResult GetLazy() => Ok(_data.Products.Where(p => p.Stock > 500).Select(p => p));
+
+    /// <summary>A lazily evaluated sequence that counts how often it is enumerated.</summary>
+    [HttpGet("/counted")]
+    public IActionResult GetCounted() => Ok(new CountingEnumerable<Product>(_data.Products.Take(5), _counter));
+
+    /// <summary>A counted sequence whose data CCF cannot encode: the JSON fallback must not enumerate it again.</summary>
+    [HttpGet("/counted-bad")]
+    public IActionResult GetCountedBad() =>
+        Ok(new CountingEnumerable<PricedItem>(new[] { new PricedItem { Name = "x", Price = 1.234m } }, _counter));
+
+    /// <summary>[Produces] restricts the offered media types: CCF is never offered here.</summary>
+    [HttpGet("/json-only")]
+    [Produces("application/json")]
+    public ActionResult<List<Product>> GetJsonOnly() => _data.Products.Take(3).ToList();
+
+    /// <summary>A null result.</summary>
+    [HttpGet("/null")]
+    public IActionResult GetNull() => Ok(null);
 }

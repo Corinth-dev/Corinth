@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
 
@@ -31,14 +32,24 @@ public static class CcfServiceCollectionExtensions
         builder.ValidateOnStart();
 
         services.TryAddSingleton<ISchemaRegistry, CcfSchemaRegistry>();
-        services.TryAddSingleton(sp =>
-        {
-            var registry = sp.GetRequiredService<ISchemaRegistry>();
-            return new CcfEncoder(registry.SchemaOptions, sp.GetRequiredService<IOptions<CcfOptions>>().Value.DictionaryThreshold);
-        });
-        services.TryAddSingleton<CcfOutputFormatter>();
+        services.TryAddSingleton<CcfPaths>();
+        services.TryAddSingleton(sp => sp.GetRequiredService<CcfPaths>().Mvc.Encoder);
+        services.TryAddSingleton(sp => new CcfOutputFormatter(
+            sp.GetRequiredService<ISchemaRegistry>(),
+            sp.GetRequiredService<CcfPaths>(),
+            sp.GetRequiredService<IOptions<CcfOptions>>(),
+            sp.GetRequiredService<Microsoft.Extensions.Logging.ILoggerFactory>()));
         services.TryAddEnumerable(ServiceDescriptor.Transient<IConfigureOptions<MvcOptions>, CcfMvcOptionsSetup>());
-        services.TryAddEnumerable(ServiceDescriptor.Transient<IStartupFilter, CcfQueryOverrideStartupFilter>());
+        services.TryAddEnumerable(ServiceDescriptor.Transient<IStartupFilter, CcfStartupFilter>());
+
+        // Decorate MVC's formatter selection (works whether AddControllers ran before or after AddCcf: the
+        // replacement builds MVC's own default selector as the inner one).
+        services.Replace(ServiceDescriptor.Singleton<Microsoft.AspNetCore.Mvc.Infrastructure.OutputFormatterSelector>(sp =>
+            new CcfOutputFormatterSelector(
+                new Microsoft.AspNetCore.Mvc.Infrastructure.DefaultOutputFormatterSelector(
+                    sp.GetRequiredService<IOptions<MvcOptions>>(),
+                    sp.GetRequiredService<Microsoft.Extensions.Logging.ILoggerFactory>()),
+                sp.GetRequiredService<IOptions<MvcOptions>>())));
         return services;
     }
 }
@@ -70,24 +81,38 @@ internal sealed class CcfMvcOptionsSetup : IConfigureOptions<MvcOptions>
 }
 
 /// <summary>
-/// Development-only convenience: <c>?ccf=d</c> (or <c>?ccf=</c> for plain CCF) behaves as if the request had sent
-/// <c>Accept: application/vnd.ccf; features=…</c>. Active only when <see cref="CcfOptions.AllowQueryOverride"/> is
-/// set and the environment is Development; <c>?ccf=off</c> or <c>?ccf=json</c> leaves the request alone.
+/// Startup work that needs no hosted service: warns once when the MVC and minimal-API JSON options name fields
+/// differently, adds the development-only <c>?ccf=d</c> override, and sends <c>Vary: Accept</c> on every response
+/// to a request whose <c>Accept</c> mentions <c>application/vnd.ccf</c> (SPEC §2.3), whatever the outcome.
 /// </summary>
-internal sealed class CcfQueryOverrideStartupFilter : IStartupFilter
+/// <remarks>
+/// The override is active only when <see cref="CcfOptions.AllowQueryOverride"/> is set and the environment is
+/// Development: <c>?ccf=d</c> (or <c>?ccf=</c> for plain CCF) behaves as if the request had sent
+/// <c>Accept: application/vnd.ccf; features=…</c>; <c>?ccf=off</c>, <c>json</c> or <c>0</c> leave the request alone.
+/// </remarks>
+internal sealed class CcfStartupFilter : IStartupFilter
 {
+    private static readonly string[] NamingProbes = { "PascalCaseName", "ID", "URLValue", "a1B2", "snake_Case", "X" };
+
     private readonly IOptions<CcfOptions> _options;
     private readonly IHostEnvironment _environment;
+    private readonly ISchemaRegistry _registry;
+    private readonly Microsoft.Extensions.Logging.ILoggerFactory _loggerFactory;
 
-    public CcfQueryOverrideStartupFilter(IOptions<CcfOptions> options, IHostEnvironment environment)
+    public CcfStartupFilter(
+        IOptions<CcfOptions> options, IHostEnvironment environment, ISchemaRegistry registry, Microsoft.Extensions.Logging.ILoggerFactory loggerFactory)
     {
         _options = options;
         _environment = environment;
+        _registry = registry;
+        _loggerFactory = loggerFactory;
     }
 
-    public Action<Microsoft.AspNetCore.Builder.IApplicationBuilder> Configure(Action<Microsoft.AspNetCore.Builder.IApplicationBuilder> next) =>
+    public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) =>
         app =>
         {
+            WarnIfNamingDiffers();
+
             if (_options.Value.AllowQueryOverride && _environment.IsDevelopment())
             {
                 app.Use((HttpContext context, RequestDelegate nextMiddleware) =>
@@ -107,6 +132,38 @@ internal sealed class CcfQueryOverrideStartupFilter : IStartupFilter
                 });
             }
 
+            app.Use((HttpContext context, RequestDelegate nextMiddleware) =>
+            {
+                if (CcfNegotiation.Mentions(context.Request))
+                {
+                    // Added when the response starts so that every outcome is covered: CCF, JSON, fallback, 404, errors.
+                    context.Response.OnStarting(static state =>
+                    {
+                        CcfNegotiation.AddVaryAccept((HttpResponse)state);
+                        return Task.CompletedTask;
+                    }, context.Response);
+                }
+
+                return nextMiddleware(context);
+            });
+
             next(app);
         };
+
+    private void WarnIfNamingDiffers()
+    {
+        var mvc = _registry.SchemaOptions.PropertyNamingPolicy;
+        var http = _registry.HttpSchemaOptions.PropertyNamingPolicy;
+        foreach (var probe in NamingProbes)
+        {
+            if ((mvc?.ConvertName(probe) ?? probe) != (http?.ConvertName(probe) ?? probe))
+            {
+                _loggerFactory.CreateLogger("Ccf").LogWarning(
+                    "MVC JsonOptions ({Mvc}) and minimal-API JsonOptions ({Http}) use different property naming policies: CCF follows each path's own policy, so the same type gets a different schema and id on the two paths.",
+                    mvc?.GetType().Name ?? "none",
+                    http?.GetType().Name ?? "none");
+                return;
+            }
+        }
+    }
 }

@@ -59,28 +59,38 @@ app.MapCcfSchemas();                        // GET /ccf/schemas/{id}
 
 | Service | Lifetime | Role |
 | --- | --- | --- |
-| `IOptions<CcfOptions>` | singleton | Threshold, limits, path prefix, dev query override; bindable from `appsettings.json` section `Ccf` |
-| `ISchemaRegistry` | singleton | `Type → CcfSchema` cache and `id → CcfSchema` index, thread-safe (`ConcurrentDictionary`) |
-| `CcfEncoder` | singleton | Stateless, thread-safe |
+| `IOptions<CcfOptions>` | singleton | Threshold, limits, path prefix, dev query override; bindable from `appsettings.json` section `Ccf`, validated on start |
+| `ISchemaRegistry` | singleton | `(Type, naming policy) → CcfSchema` cache and `id → CcfSchema` index, thread-safe (`ConcurrentDictionary`) |
+| `CcfEncoder` | singleton | The encoder of the MVC path; stateless, thread-safe (an internal twin serves the minimal-API path, see 3.3) |
 | `CcfOutputFormatter` | added to `MvcOptions.OutputFormatters` | MVC controllers get CCF through normal negotiation |
+| `OutputFormatterSelector` | singleton, replaced | Decorates MVC's `DefaultOutputFormatterSelector` (see 3.2) |
+| `IStartupFilter` | transient | Development query override, `Vary: Accept` middleware, startup naming warning |
 
 It is not a hosted/background service: nothing runs unless a request asks for CCF.
 
-### 3.2 Output formatter
+**Naming follows the path's own JSON options.** MVC responses use MVC's `JsonOptions.JsonSerializerOptions.PropertyNamingPolicy`; minimal APIs use `Microsoft.AspNetCore.Http.Json.JsonOptions` (`ConfigureHttpJsonOptions`). The registry is keyed by (type, naming policy), so differing policies produce different schemas and ids, each served by the schema endpoint. One warning is logged at startup if the two policies differ.
 
-`CcfOutputFormatter : OutputFormatter`, supported media type `application/vnd.ccf`.
+### 3.2 Content negotiation and the output formatter
 
-1. `CanWriteResult`: true only when the selected media type is `application/vnd.ccf` **and** `ISchemaRegistry.TryGetSchema(objectType)` succeeds **and** the value is not null. Otherwise false, so MVC moves on to the JSON formatter (fallback).
-2. Parse `features` from the request's matching `Accept` media range (quoted or bare, SPEC §2.1). Unknown letters ignored.
-3. Encode the whole payload into a pooled buffer (`ArrayBufferWriter<byte>` or `ArrayPool`-backed writer).
-4. On `CcfEncodeException`: log a warning with the schema id and reason, then write the response as JSON with the app's configured `JsonSerializerOptions` (headers have not been sent yet).
-5. On success: set `Content-Type` per SPEC §2.3 from the flags actually produced, add `Vary: Accept`, set `Content-Length`, copy the buffer to the body.
+**Rule (`CcfNegotiation.TryNegotiate`).** CCF is served only when `application/vnd.ccf` is listed *explicitly* with `q > 0` and no other explicit media type the server can produce (`application/json`, `text/json`, `*+json`) has a higher `q`. Wildcards (`*/*`, `application/*`) never compete, so `application/vnd.ccf, */*;q=0.1` yields CCF. Equal `q` keeps header order, so `application/json, application/vnd.ccf` yields JSON. `q=0` means not acceptable. `features` is read from the winning range, quoted or bare; unknown letters are ignored. `MvcOptions.RespectBrowserAcceptHeader` is left alone.
 
-Verified in phase 2 (`CcfMediaTypeMatchingTests`): MVC passes the Accept range, parameters included, as `context.ContentType`, but the stock `OutputFormatter.CanWriteResult` only matches when the formatter's media type carries every parameter of that range, so `application/vnd.ccf` never matches `application/vnd.ccf; features=d`. `CcfOutputFormatter` therefore overrides `CanWriteResult`: it compares type/subtype only, requires that `CcfNegotiation.TryNegotiate` agrees (so `q=0` is honoured), reads `features` from the request, and sets the response `Content-Type` itself from the flags produced. It is registered after the built-in formatters and never claims a response without an explicit `application/vnd.ccf` offer, so wildcard and absent `Accept` headers stay JSON. MVC treats an `Accept` containing `*/*` as no preference (unless `RespectBrowserAcceptHeader`); `CcfResults` follows the same rules. The JSON fallback delegates to the first registered JSON `TextOutputFormatter`, and a result filter adds `Vary: Accept` to JSON responses of CCF-capable endpoints. The development override is an `IStartupFilter` middleware that rewrites `Accept`.
+**MVC.** MVC ignores an `Accept` header containing `*/*`, so CCF wraps the selector: `CcfOutputFormatterSelector` applies the rule above first (honouring `[Produces]`/`ObjectResult.ContentTypes`, and falling back to `MvcOptions.OutputFormatters` when the result carries no formatters of its own) and otherwise delegates to MVC unchanged. `CcfOutputFormatter : OutputFormatter` (supported media type `application/vnd.ccf`):
+
+1. `CanWriteResult`: true only when the offered media type is `application/vnd.ccf`, the rule above agrees, the value is not null and `ISchemaRegistry.TryGetSchema(objectType)` succeeds. It never claims a response without an explicit offer, so wildcard or absent `Accept` stays JSON, and it is registered after the built-in formatters.
+2. Materialize a lazy `IEnumerable<T>` response **once** into a list (arrays and `IList` are used as they are), so an LINQ or EF query is never executed twice.
+3. Encode the whole payload into a pooled buffer.
+4. On `CcfEncodeException`: log a warning with the schema id and reason, then write the *materialized* value as JSON through the first registered JSON `TextOutputFormatter` (headers have not been sent yet).
+5. On success: set `Content-Type` per SPEC §2.3 from the flags actually produced, set `Content-Length`, copy the buffer to the body.
+
+**Why `CanWriteResult` is custom** (verified in `CcfMediaTypeMatchingTests`): MVC passes the Accept range, parameters included, as `context.ContentType`, but the stock `OutputFormatter.CanWriteResult` only matches when the formatter's media type carries every parameter of that range, so `application/vnd.ccf` never matches `application/vnd.ccf; features=d`. The formatter compares type/subtype only and reads `features` from the request.
+
+**`Vary: Accept`.** Sent (a) on every response to a request whose `Accept` mentions `application/vnd.ccf`, whatever the outcome (CCF, JSON, fallback, 204, 404, unsupported type, scalar), by an early middleware that adds it when the response starts; and (b) on JSON responses of endpoints whose value type has a CCF schema even if the request did not mention CCF (SPEC §2.3), by a result filter (MVC) and inside `CcfResults.Ok`. It is never duplicated.
+
+**Development override.** `?ccf=d` (or `?ccf=` for plain CCF) rewrites `Accept` as if the request had sent `application/vnd.ccf; features=…`; `?ccf=off|json|0` leaves it alone. Active only when `AllowQueryOverride` is set and the environment is Development.
 
 ### 3.3 Minimal APIs
 
-`CcfResults.Ok<T>(T value)` returns an `IResult` that performs the same negotiation (CCF if accepted and supported, otherwise `TypedResults.Ok(value)` as JSON). An endpoint filter `.WithCcf()` MAY be added to wrap existing handlers.
+`CcfResults.Ok<T>(T value)` returns an `IResult` that applies the same rule (CCF if accepted and supported, otherwise `TypedResults.Ok(value)` as JSON), materializes a lazy sequence once, falls back to JSON from the same list on an encode failure, and uses the Http `JsonOptions` naming. A `.WithCcf()` endpoint filter that wraps existing handlers is a possible later, optional addition; it is not implemented.
 
 ### 3.4 Schema endpoint
 

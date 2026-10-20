@@ -7,16 +7,16 @@ namespace Ccf.AspNetCore.Tests;
 /// <summary>One sample host shared by the read-only integration tests.</summary>
 public sealed class DefaultHostFixture : IAsyncLifetime
 {
-    public SampleHost Host { get; private set; } = null!;
+    public TestHost Host { get; private set; } = null!;
 
-    public async Task InitializeAsync() => Host = await SampleHost.StartAsync();
+    public async Task InitializeAsync() => Host = await TestHost.StartAsync();
 
     public async Task DisposeAsync() => await Host.DisposeAsync();
 }
 
 public class IntegrationTests : IClassFixture<DefaultHostFixture>
 {
-    private readonly SampleHost _host;
+    private readonly TestHost _host;
 
     public IntegrationTests(DefaultHostFixture fixture)
     {
@@ -34,11 +34,9 @@ public class IntegrationTests : IClassFixture<DefaultHostFixture>
     [InlineData("application/*")]
     [InlineData("application/vnd.ccf;q=0")]
     [InlineData("application/vnd.ccf; features=d;q=0, application/json")]
-    // MVC ignores an Accept header that contains */* (RespectBrowserAcceptHeader is false by default) …
-    [InlineData("application/vnd.ccf, */*;q=0.1")]
-    [InlineData("application/vnd.ccf; features=d, */*")]
-    // … and equal-quality ranges of different media types keep their order, so the first one wins.
+    // Equal-quality explicit ranges keep their header order, so the first one wins (MVC's rule).
     [InlineData("application/json, application/vnd.ccf; features=d")]
+    [InlineData("application/vnd.ccf;q=0, */*")]
     public async Task Json_is_served_unless_ccf_is_explicitly_preferred(string? accept)
     {
         var (response, body) = await _host.GetBytesAsync("/products", accept);
@@ -58,6 +56,8 @@ public class IntegrationTests : IClassFixture<DefaultHostFixture>
     [InlineData("APPLICATION/VND.CCF")]
     [InlineData("application/vnd.ccf; features=n")]
     [InlineData("application/vnd.ccf;features=\"n\"")]
+    [InlineData("application/vnd.ccf, */*;q=0.1")]
+    [InlineData("*/*;q=0.9, application/vnd.ccf;q=0.2")]
     public async Task Plain_ccf_bytes_equal_vector_v01(string accept)
     {
         var (response, body) = await _host.GetBytesAsync("/products", accept);
@@ -75,6 +75,8 @@ public class IntegrationTests : IClassFixture<DefaultHostFixture>
     [InlineData("application/vnd.ccf; features=\"d,n\"")]
     [InlineData("application/vnd.ccf; features=\"n,d\", application/json;q=0.5")]
     [InlineData("application/json;q=0.5, application/vnd.ccf; features=d")]
+    [InlineData("application/vnd.ccf; features=d, */*")]
+    [InlineData("application/vnd.ccf; features=d, application/json;q=0.5, */*;q=0.1")]
     [InlineData("application/vnd.ccf; features=d; q=0.9, application/json;q=0.8")]
     public async Task Dictionary_ccf_bytes_equal_vector_v02(string accept)
     {
@@ -159,7 +161,7 @@ public class IntegrationTests : IClassFixture<DefaultHostFixture>
 
         Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
         Assert.StartsWith("application/json", response.ContentType());
-        Assert.DoesNotContain("Accept", response.Vary()); // this endpoint cannot serve CCF
+        Assert.Contains("Accept", response.Vary()); // the request mentioned CCF: Vary whatever the outcome
         Assert.NotEqual((byte)0x43, body[0]);
         JsonDocument.Parse(body).Dispose();
     }
@@ -258,48 +260,3 @@ public class IntegrationTests : IClassFixture<DefaultHostFixture>
     }
 }
 
-public class AcceptHeaderOptionTests
-{
-    [Fact]
-    public async Task With_RespectBrowserAcceptHeader_a_wildcard_in_accept_no_longer_hides_ccf()
-    {
-        await using var host = await SampleHost.StartAsync(b =>
-        {
-            b.Services.Configure<Microsoft.AspNetCore.Mvc.MvcOptions>(o => o.RespectBrowserAcceptHeader = true);
-        });
-
-        var (response, body) = await host.GetBytesAsync("/products", "application/vnd.ccf, */*;q=0.1");
-        Assert.Equal("application/vnd.ccf", response.ContentType());
-        Assert.Equal(Vectors.Bytes("v01-products-plain"), body);
-
-        var (min, minBody) = await host.GetBytesAsync("/min/products", "application/vnd.ccf; features=d, */*;q=0.1");
-        Assert.Equal("application/vnd.ccf; features=d", min.ContentType());
-        Assert.Equal(Vectors.Bytes("v02-products-dict"), minBody);
-
-        // */* alone still means JSON.
-        var json = await host.GetAsync("/products", "*/*");
-        Assert.StartsWith("application/json", json.ContentType());
-    }
-
-    [Fact]
-    public async Task Without_it_controllers_and_minimal_apis_agree_on_wildcard_headers()
-    {
-        await using var host = await SampleHost.StartAsync();
-        foreach (var path in new[] { "/products", "/min/products" })
-        {
-            var response = await host.GetAsync(path, "application/vnd.ccf, */*;q=0.1");
-            Assert.StartsWith("application/json", response.ContentType());
-        }
-    }
-
-    [Fact]
-    public async Task A_q0_range_means_not_acceptable_on_both_paths()
-    {
-        await using var host = await SampleHost.StartAsync();
-        foreach (var path in new[] { "/products", "/min/products" })
-        {
-            var response = await host.GetAsync(path, "application/vnd.ccf;q=0");
-            Assert.StartsWith("application/json", response.ContentType());
-        }
-    }
-}

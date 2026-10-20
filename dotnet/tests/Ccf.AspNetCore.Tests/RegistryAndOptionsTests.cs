@@ -10,8 +10,8 @@ namespace Ccf.AspNetCore.Tests;
 
 public class RegistryTests
 {
-    private static CcfSchemaRegistry NewRegistry(Func<Type, (CcfSchema?, string?)>? build = null, ILogger? logger = null) =>
-        new(CcfSchemaOptions.Default, logger ?? NullLogger.Instance, build);
+    private static CcfSchemaRegistry NewRegistry(Func<Type, CcfSchemaOptions, (CcfSchema?, string?)>? build = null, ILogger? logger = null) =>
+        new(CcfSchemaOptions.Default, new CcfSchemaOptions { PropertyNamingPolicy = null }, logger ?? NullLogger.Instance, build);
 
     [Fact]
     public void Schemas_are_built_lazily_cached_and_found_by_id()
@@ -40,6 +40,23 @@ public class RegistryTests
         }
 
         Assert.Single(registry.Schemas);
+    }
+
+    [Fact]
+    public void The_registry_is_keyed_by_type_and_naming_policy()
+    {
+        var registry = NewRegistry();
+        Assert.True(registry.TryGetSchema(typeof(Product), registry.SchemaOptions, out var camel));
+        Assert.True(registry.TryGetSchema(typeof(Product), registry.HttpSchemaOptions, out var pascal));
+        Assert.True(registry.TryGetSchema(typeof(Product), out var defaultPath));
+
+        Assert.NotEqual(camel!.IdHex, pascal!.IdHex);
+        Assert.Contains("\"name\":\"Name\"", pascal.CanonicalJson);
+        Assert.Same(camel, defaultPath);
+        Assert.Equal(2, registry.Schemas.Count);
+        Assert.True(registry.TryGetById(pascal.IdHex, out var found));
+        Assert.Same(pascal, found);
+        Assert.Same(pascal, registry.Register(typeof(Product), registry.HttpSchemaOptions));
     }
 
     [Fact]
@@ -118,7 +135,7 @@ public class RegistryTests
 
         var logs = new System.Collections.Concurrent.ConcurrentQueue<LogEntry>();
         var logger = new CapturingLoggerProvider(logs).CreateLogger("Ccf");
-        var registry = NewRegistry(t => t == typeof(Product) ? (a, null) : (b, null), logger);
+        var registry = NewRegistry((t, _) => t == typeof(Product) ? (a, null) : (b, null), logger);
 
         Assert.True(registry.TryGetSchema(typeof(Product), out var first));
         Assert.Same(a, first);

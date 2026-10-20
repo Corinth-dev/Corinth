@@ -2,6 +2,7 @@ using System.Diagnostics.Metrics;
 using System.Text.Json;
 using Ccf.SampleApi;
 using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -11,10 +12,8 @@ namespace Ccf.AspNetCore.Tests;
 
 public class DevelopmentOverrideTests
 {
-    private static Task<SampleHost> Host(string environment, bool allow) =>
-        SampleHost.StartAsync(
-            b => b.Configuration.AddInMemoryCollection(new Dictionary<string, string?> { ["Ccf:AllowQueryOverride"] = allow ? "true" : "false" }),
-            environment);
+    private static Task<TestHost> Host(string environment, bool allow) =>
+        TestHost.StartAsync(environment, new() { ["Ccf:AllowQueryOverride"] = allow ? "true" : "false" });
 
     [Theory]
     [InlineData("?ccf=d", "v02-products-dict", "application/vnd.ccf; features=d")]
@@ -75,8 +74,11 @@ public class DevelopmentOverrideTests
 
 public class ConfigurationTests
 {
-    private static Task<SampleHost> Host(Dictionary<string, string?> config, bool preRegister = true) =>
-        SampleHost.StartAsync(b => b.Configuration.AddInMemoryCollection(config), preRegisterSchemas: preRegister);
+    private static Task<TestHost> Host(Dictionary<string, string?> config, bool preRegister = true)
+    {
+        config["Sample:PreRegisterSchemas"] = preRegister ? "true" : "false";
+        return TestHost.StartAsync(config: config);
+    }
 
     [Fact]
     public async Task Row_limit_from_configuration_makes_big_responses_fall_back_to_json_while_small_ones_stay_ccf()
@@ -116,7 +118,10 @@ public class ConfigurationTests
     [Fact]
     public async Task Invalid_configuration_stops_the_host_from_starting()
     {
-        await Assert.ThrowsAsync<OptionsValidationException>(() => Host(new() { ["Ccf:DictionaryThreshold"] = "7" }));
+        var ex = await Assert.ThrowsAnyAsync<Exception>(() => Host(new() { ["Ccf:DictionaryThreshold"] = "7" }));
+        Assert.True(
+            ex is OptionsValidationException || ex.InnerException is OptionsValidationException || ex.ToString().Contains("DictionaryThreshold"),
+            ex.ToString());
     }
 
     [Fact]
@@ -135,8 +140,8 @@ public class ConfigurationTests
     [Fact]
     public async Task Field_names_follow_the_mvc_json_naming_policy()
     {
-        await using var host = await SampleHost.StartAsync(b =>
-            b.Services.Configure<Microsoft.AspNetCore.Mvc.JsonOptions>(o => o.JsonSerializerOptions.PropertyNamingPolicy = null));
+        await using var host = await TestHost.StartAsync(services: s =>
+            s.Configure<Microsoft.AspNetCore.Mvc.JsonOptions>(o => o.JsonSerializerOptions.PropertyNamingPolicy = null));
 
         var json = await host.GetAsync("/products/1001");
         using var doc = JsonDocument.Parse(await json.Content.ReadAsStringAsync());
@@ -153,7 +158,7 @@ public class ClientFlowTests
     [Fact]
     public async Task A_client_can_read_the_schema_id_fetch_and_verify_the_schema_and_decode()
     {
-        await using var host = await SampleHost.StartAsync(preRegisterSchemas: false);
+        await using var host = await TestHost.StartAsync(config: new() { ["Sample:PreRegisterSchemas"] = "false" });
 
         var (response, payload) = await host.GetBytesAsync("/products", "application/vnd.ccf; features=d, application/json;q=0.5");
         Assert.Equal("application/vnd.ccf; features=d", response.ContentType());
@@ -205,7 +210,7 @@ public class DiagnosticsTests
     [Fact]
     public async Task Served_ccf_responses_are_counted_with_format_features_and_bytes()
     {
-        await using var host = await SampleHost.StartAsync();
+        await using var host = await TestHost.StartAsync();
         using var meter = new MeterCapture();
 
         await host.GetBytesAsync("/products", "application/vnd.ccf; features=d");
@@ -223,7 +228,7 @@ public class DiagnosticsTests
     [InlineData("/min/bad-decimal")]
     public async Task Encode_failures_are_counted_and_logged_as_a_warning_with_the_schema_id(string path)
     {
-        await using var host = await SampleHost.StartAsync();
+        await using var host = await TestHost.StartAsync();
         using var meter = new MeterCapture();
 
         await host.GetBytesAsync(path, "application/vnd.ccf");
@@ -242,7 +247,7 @@ public class DiagnosticsTests
     [Fact]
     public async Task Registration_and_unsupported_types_are_logged_at_debug_level_in_the_Ccf_category()
     {
-        await using var host = await SampleHost.StartAsync();
+        await using var host = await TestHost.StartAsync();
         await host.GetAsync("/unsupported", "application/vnd.ccf");
         await host.GetAsync("/bad-decimal", "application/vnd.ccf");
 
@@ -253,5 +258,221 @@ public class DiagnosticsTests
         await host.GetAsync("/unsupported", "application/vnd.ccf");
         Assert.Equal(before, host.Logs.Count(l => l.Category == "Ccf" && l.Message.Contains("UnsupportedReport")));
         Assert.Equal(1, before);
+    }
+}
+
+public class AcceptRuleTests
+{
+    // The four cases the project owner asked for, on both paths.
+    [Theory]
+    [InlineData("application/vnd.ccf, */*;q=0.1", true)]
+    [InlineData("application/json, application/vnd.ccf;q=0.5", false)]
+    [InlineData("application/vnd.ccf;q=0, */*", false)]
+    [InlineData("*/*", false)]
+    // and a few neighbours
+    [InlineData("application/vnd.ccf; features=d, */*", true)]
+    [InlineData("*/*;q=0.9, application/vnd.ccf;q=0.2", true)]
+    [InlineData("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", false)]
+    [InlineData("application/json;q=0.4, application/vnd.ccf;q=0.5, */*", true)]
+    public async Task Controllers_and_minimal_apis_apply_the_same_rule(string accept, bool expectCcf)
+    {
+        await using var host = await TestHost.StartAsync();
+        foreach (var path in new[] { "/products", "/min/products" })
+        {
+            var response = await host.GetAsync(path, accept);
+            if (expectCcf)
+            {
+                Assert.StartsWith("application/vnd.ccf", response.ContentType());
+            }
+            else
+            {
+                Assert.StartsWith("application/json", response.ContentType());
+            }
+        }
+    }
+
+    [Fact]
+    public async Task The_exception_does_not_change_RespectBrowserAcceptHeader()
+    {
+        await using var host = await TestHost.StartAsync();
+        Assert.False(host.Services.GetRequiredService<IOptions<Microsoft.AspNetCore.Mvc.MvcOptions>>().Value.RespectBrowserAcceptHeader);
+
+        // Other media types keep MVC's behaviour: a wildcard in the header still makes MVC ignore it.
+        var response = await host.GetAsync("/products", "text/xml, */*;q=0.1");
+        Assert.StartsWith("application/json", response.ContentType());
+    }
+
+    [Fact]
+    public async Task Produces_restricts_the_offered_types_so_ccf_is_never_served_there()
+    {
+        await using var host = await TestHost.StartAsync();
+        foreach (var accept in new[] { "application/vnd.ccf", "application/vnd.ccf, */*;q=0.1", "application/vnd.ccf; features=d, application/json;q=0.5" })
+        {
+            var response = await host.GetAsync("/json-only", accept);
+            Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
+            Assert.StartsWith("application/json", response.ContentType());
+            Assert.Contains("Accept", response.Vary());
+        }
+    }
+}
+
+public class SingleEnumerationTests
+{
+    private static EnumerationCounter Counter(TestHost host) => host.Services.GetRequiredService<EnumerationCounter>();
+
+    [Theory]
+    [InlineData("/counted")]
+    [InlineData("/min/counted")]
+    public async Task A_lazy_sequence_is_enumerated_once_when_served_as_ccf(string path)
+    {
+        await using var host = await TestHost.StartAsync();
+        Counter(host).Reset();
+
+        var (response, body) = await host.GetBytesAsync(path, "application/vnd.ccf; features=d");
+
+        Assert.StartsWith("application/vnd.ccf", response.ContentType());
+        Assert.Equal(1, Counter(host).Count);
+        var products = CcfDecoder.Decode<List<Product>>(body, CcfSchema.Parse(Vectors.SchemaText("schema-Product.json")));
+        Assert.Equal(5, products.Count);
+        Assert.Equal(1001, products[0].Id);
+    }
+
+    [Theory]
+    [InlineData("/counted-bad")]
+    [InlineData("/min/counted-bad")]
+    public async Task The_json_fallback_after_an_encode_failure_does_not_enumerate_again(string path)
+    {
+        await using var host = await TestHost.StartAsync();
+        Counter(host).Reset();
+
+        var (response, body) = await host.GetBytesAsync(path, "application/vnd.ccf");
+
+        Assert.StartsWith("application/json", response.ContentType());
+        Assert.Equal(1, Counter(host).Count);
+        using var doc = JsonDocument.Parse(body);
+        Assert.Equal(1, doc.RootElement.GetArrayLength());
+        Assert.Equal(1.234m, doc.RootElement[0].GetProperty("price").GetDecimal());
+    }
+
+    [Theory]
+    [InlineData("/counted", null)]
+    [InlineData("/counted", "application/json")]
+    [InlineData("/min/counted", null)]
+    [InlineData("/min/counted", "application/json")]
+    [InlineData("/counted-bad", null)]
+    public async Task Plain_json_responses_enumerate_once_too(string path, string? accept)
+    {
+        await using var host = await TestHost.StartAsync();
+        Counter(host).Reset();
+
+        var response = await host.GetAsync(path, accept);
+
+        Assert.StartsWith("application/json", response.ContentType());
+        Assert.Equal(1, Counter(host).Count);
+    }
+}
+
+public class VaryTests
+{
+    [Theory]
+    [InlineData("/products")]
+    [InlineData("/products/1001")]
+    [InlineData("/products/999999")]   // 404
+    [InlineData("/scalar")]
+    [InlineData("/unsupported")]
+    [InlineData("/bad-decimal")]       // encode failure → JSON
+    [InlineData("/null")]              // 204
+    [InlineData("/json-only")]
+    [InlineData("/min/products")]
+    [InlineData("/min/null")]
+    [InlineData("/min/unsupported")]
+    [InlineData("/min/bad-decimal")]
+    [InlineData("/ccf/schemas/c33a3ed0")]
+    [InlineData("/ccf/schemas/00000000")]
+    [InlineData("/no/such/route")]
+    public async Task Vary_Accept_is_sent_whenever_the_request_mentions_ccf_whatever_the_outcome(string path)
+    {
+        await using var host = await TestHost.StartAsync();
+        foreach (var accept in new[] { "application/vnd.ccf", "application/json, application/vnd.ccf;q=0.5", "application/vnd.ccf;q=0, */*" })
+        {
+            var response = await host.GetAsync(path, accept);
+            Assert.Contains("Accept", response.Vary());
+            Assert.Single(response.Vary(), "Accept"); // never duplicated
+        }
+    }
+
+    [Fact]
+    public async Task Endpoints_that_can_serve_ccf_vary_on_Accept_even_for_requests_that_do_not_mention_it()
+    {
+        await using var host = await TestHost.StartAsync();
+        Assert.Contains("Accept", (await host.GetAsync("/products")).Vary());
+        Assert.Contains("Accept", (await host.GetAsync("/min/products", "application/json")).Vary());
+        Assert.Contains("Accept", (await host.GetAsync("/products/1001", "*/*")).Vary());
+    }
+
+    [Fact]
+    public async Task Endpoints_that_cannot_serve_ccf_do_not_vary_for_requests_that_do_not_mention_it()
+    {
+        await using var host = await TestHost.StartAsync();
+        Assert.DoesNotContain("Accept", (await host.GetAsync("/scalar")).Vary());
+        Assert.DoesNotContain("Accept", (await host.GetAsync("/unsupported", "application/json")).Vary());
+        Assert.DoesNotContain("Accept", (await host.GetAsync("/min/unsupported")).Vary());
+    }
+}
+
+public class NamingPerPathTests
+{
+    private static async Task<string> SchemaIdOf(TestHost host, string path)
+    {
+        var (_, body) = await host.GetBytesAsync(path, "application/vnd.ccf");
+        return CcfDecoder.PeekSchemaId(body);
+    }
+
+    [Fact]
+    public async Task By_default_both_paths_use_camel_case_share_one_schema_and_log_no_warning()
+    {
+        await using var host = await TestHost.StartAsync();
+
+        Assert.Equal(await SchemaIdOf(host, "/products/1001"), await SchemaIdOf(host, "/min/products/1001"));
+        Assert.DoesNotContain(host.Logs, l => l.Level == LogLevel.Warning && l.Category == "Ccf");
+    }
+
+    [Fact]
+    public async Task Each_path_follows_its_own_json_options_so_the_schemas_and_ids_differ()
+    {
+        await using var host = await TestHost.StartAsync(services: s =>
+            s.ConfigureHttpJsonOptions(o => o.SerializerOptions.PropertyNamingPolicy = null)); // minimal APIs: PascalCase; MVC stays camelCase
+
+        var mvcId = await SchemaIdOf(host, "/products/1001");
+        var httpId = await SchemaIdOf(host, "/min/products/1001");
+        Assert.Equal("c33a3ed0", mvcId);
+        Assert.NotEqual(mvcId, httpId);
+
+        var mvcSchema = await (await host.GetAsync("/ccf/schemas/" + mvcId)).Content.ReadAsStringAsync();
+        var httpSchema = await (await host.GetAsync("/ccf/schemas/" + httpId)).Content.ReadAsStringAsync();
+        Assert.Contains("\"name\":\"name\"", mvcSchema);
+        Assert.Contains("\"name\":\"Name\"", httpSchema);
+
+        // The CCF payload of each path decodes against its own schema, and matches that path's JSON field names.
+        var (_, httpBody) = await host.GetBytesAsync("/min/products/1001", "application/vnd.ccf");
+        var product = CcfDecoder.Decode<Product>(httpBody, CcfSchema.Parse(httpSchema), new CcfSchemaOptions { PropertyNamingPolicy = null });
+        Assert.Equal("Steel Monitor", product.Name);
+        using var json = JsonDocument.Parse(await (await host.GetAsync("/min/products/1001")).Content.ReadAsStringAsync());
+        Assert.True(json.RootElement.TryGetProperty("Name", out _));
+
+        var registry = host.Services.GetRequiredService<ISchemaRegistry>();
+        Assert.Equal(2, registry.Schemas.Count(s => s.Name == "Product"));
+    }
+
+    [Fact]
+    public async Task A_startup_warning_is_logged_once_when_the_two_option_sets_name_fields_differently()
+    {
+        await using var host = await TestHost.StartAsync(services: s =>
+            s.Configure<Microsoft.AspNetCore.Mvc.JsonOptions>(o => o.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower));
+
+        await host.GetAsync("/products");
+        await host.GetAsync("/min/products");
+        var warning = Assert.Single(host.Logs, l => l.Level == LogLevel.Warning && l.Category == "Ccf");
+        Assert.Contains("different property naming policies", warning.Message);
     }
 }

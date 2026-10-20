@@ -1,8 +1,10 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using HttpJsonOptions = Microsoft.AspNetCore.Http.Json.JsonOptions;
 
 namespace Ccf.AspNetCore;
 
@@ -11,19 +13,28 @@ public sealed class CcfSchemaRegistry : ISchemaRegistry
 {
     private sealed record Entry(CcfSchema? Schema, string? Reason);
 
-    private readonly ConcurrentDictionary<Type, Entry> _byType = new();
+    private readonly ConcurrentDictionary<(Type, JsonNamingPolicy?, int), Entry> _byKey = new();
     private readonly ConcurrentDictionary<string, CcfSchema> _byId = new(StringComparer.Ordinal);
     private readonly object _registerLock = new();
     private readonly ILogger _logger;
-    private readonly Func<Type, (CcfSchema? Schema, string? Reason)> _build;
+    private readonly Func<Type, CcfSchemaOptions, (CcfSchema? Schema, string? Reason)> _build;
 
     /// <summary>Creates the registry used by <c>AddCcf</c>.</summary>
-    public CcfSchemaRegistry(IOptions<CcfOptions> options, IOptions<JsonOptions> mvcJson, ILoggerFactory loggerFactory)
+    public CcfSchemaRegistry(
+        IOptions<CcfOptions> options,
+        IOptions<JsonOptions> mvcJson,
+        IOptions<HttpJsonOptions> httpJson,
+        ILoggerFactory loggerFactory)
         : this(
+            // Field names mirror what System.Text.Json emits on that path's own JSON output (ARCHITECTURE §5.2).
             new CcfSchemaOptions
             {
-                // Field names mirror what System.Text.Json emits for MVC responses (ARCHITECTURE §5.2).
                 PropertyNamingPolicy = mvcJson.Value.JsonSerializerOptions.PropertyNamingPolicy,
+                DefaultDecimalScale = options.Value.DefaultDecimalScale,
+            },
+            new CcfSchemaOptions
+            {
+                PropertyNamingPolicy = httpJson.Value.SerializerOptions.PropertyNamingPolicy,
                 DefaultDecimalScale = options.Value.DefaultDecimalScale,
             },
             loggerFactory.CreateLogger("Ccf"),
@@ -32,9 +43,14 @@ public sealed class CcfSchemaRegistry : ISchemaRegistry
     }
 
     /// <summary>Test seam: lets tests substitute how schemas are built (for example to force an id collision).</summary>
-    internal CcfSchemaRegistry(CcfSchemaOptions schemaOptions, ILogger logger, Func<Type, (CcfSchema? Schema, string? Reason)>? build)
+    internal CcfSchemaRegistry(
+        CcfSchemaOptions mvc,
+        CcfSchemaOptions http,
+        ILogger logger,
+        Func<Type, CcfSchemaOptions, (CcfSchema? Schema, string? Reason)>? build)
     {
-        SchemaOptions = schemaOptions;
+        SchemaOptions = mvc;
+        HttpSchemaOptions = http;
         _logger = logger;
         _build = build ?? Build;
     }
@@ -43,13 +59,21 @@ public sealed class CcfSchemaRegistry : ISchemaRegistry
     public CcfSchemaOptions SchemaOptions { get; }
 
     /// <inheritdoc />
+    public CcfSchemaOptions HttpSchemaOptions { get; }
+
+    /// <inheritdoc />
     public IReadOnlyCollection<CcfSchema> Schemas => _byId.Values.ToArray();
 
     /// <inheritdoc />
-    public bool TryGetSchema(Type type, [NotNullWhen(true)] out CcfSchema? schema)
+    public bool TryGetSchema(Type type, [NotNullWhen(true)] out CcfSchema? schema) => TryGetSchema(type, SchemaOptions, out schema);
+
+    /// <inheritdoc />
+    public bool TryGetSchema(Type type, CcfSchemaOptions options, [NotNullWhen(true)] out CcfSchema? schema)
     {
         ArgumentNullException.ThrowIfNull(type);
-        var entry = _byType.TryGetValue(type, out var existing) ? existing : _byType.GetOrAdd(type, Resolve);
+        ArgumentNullException.ThrowIfNull(options);
+        var key = KeyOf(type, options);
+        var entry = _byKey.TryGetValue(key, out var existing) ? existing : _byKey.GetOrAdd(key, static (_, state) => state.Self.Resolve(state.Type, state.Options), (Self: this, Type: type, Options: options));
         schema = entry.Schema;
         return schema is not null;
     }
@@ -58,23 +82,30 @@ public sealed class CcfSchemaRegistry : ISchemaRegistry
     public bool TryGetById(string id, [NotNullWhen(true)] out CcfSchema? schema) => _byId.TryGetValue(id, out schema);
 
     /// <inheritdoc />
-    public CcfSchema Register(Type type)
+    public CcfSchema Register(Type type) => Register(type, SchemaOptions);
+
+    /// <inheritdoc />
+    public CcfSchema Register<T>() => Register(typeof(T), SchemaOptions);
+
+    /// <inheritdoc />
+    public CcfSchema Register(Type type, CcfSchemaOptions options)
     {
         ArgumentNullException.ThrowIfNull(type);
-        var entry = _byType.AddOrUpdate(type, Resolve, static (_, old) => old);
+        ArgumentNullException.ThrowIfNull(options);
+        var entry = _byKey.GetOrAdd(KeyOf(type, options), static (_, state) => state.Self.Resolve(state.Type, state.Options), (Self: this, Type: type, Options: options));
         return entry.Schema ?? throw new InvalidOperationException($"{type} cannot be served as CCF: {entry.Reason}");
     }
 
-    /// <inheritdoc />
-    public CcfSchema Register<T>() => Register(typeof(T));
+    private static (Type, JsonNamingPolicy?, int) KeyOf(Type type, CcfSchemaOptions options) =>
+        (type, options.PropertyNamingPolicy, options.DefaultDecimalScale);
 
-    private Entry Resolve(Type type)
+    private Entry Resolve(Type type, CcfSchemaOptions options)
     {
-        var (schema, reason) = _build(type);
+        var (schema, reason) = _build(type, options);
         if (schema is null && TryGetEnumerableInterface(type, out var asEnumerable))
         {
             // A runtime collection type (LINQ iterator, HashSet<T>, …) is served through IEnumerable<T>.
-            (schema, reason) = _build(asEnumerable);
+            (schema, reason) = _build(asEnumerable, options);
         }
 
         if (schema is null)
@@ -104,9 +135,9 @@ public sealed class CcfSchemaRegistry : ISchemaRegistry
         return new Entry(schema, null);
     }
 
-    private (CcfSchema? Schema, string? Reason) Build(Type type)
+    private static (CcfSchema? Schema, string? Reason) Build(Type type, CcfSchemaOptions options)
     {
-        var ok = CcfSchemaBuilder.TryBuild(type, SchemaOptions, out var schema, out var reason);
+        var ok = CcfSchemaBuilder.TryBuild(type, options, out var schema, out var reason);
         return ok ? (schema, null) : (null, reason);
     }
 

@@ -9,8 +9,7 @@ public static class SampleApp
     /// <summary>Creates (but does not start) the application.</summary>
     /// <param name="args">Command-line arguments.</param>
     /// <param name="configure">Lets the caller adjust the builder (environment, configuration, options).</param>
-    /// <param name="preRegisterSchemas">Registers the sample schemas at startup so the schema endpoint knows them before the first request.</param>
-    public static WebApplication Create(string[] args, Action<WebApplicationBuilder>? configure = null, bool preRegisterSchemas = true)
+    public static WebApplication Create(string[] args, Action<WebApplicationBuilder>? configure = null)
     {
         var builder = WebApplication.CreateBuilder(args);
 
@@ -20,12 +19,15 @@ public static class SampleApp
             .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
         builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
         builder.Services.AddSingleton<SampleData>();
+        builder.Services.AddSingleton<EnumerationCounter>();
         builder.Services.AddCcf();
 
         configure?.Invoke(builder);
         var app = builder.Build();
 
-        if (preRegisterSchemas)
+        // Registering schemas at startup lets the schema endpoint serve them before the first request
+        // (several instances behind a load balancer). `Sample:PreRegisterSchemas=false` turns it off for tests.
+        if (app.Configuration.GetValue("Sample:PreRegisterSchemas", true))
         {
             var registry = app.Services.GetRequiredService<ISchemaRegistry>();
             registry.Register<List<Product>>();
@@ -41,6 +43,11 @@ public static class SampleApp
         app.MapGet("/min/products/{id:long}", (long id, SampleData data) =>
             data.Products.FirstOrDefault(p => p.Id == id) is { } p ? CcfResults.Ok(p) : Results.NotFound());
         app.MapGet("/min/bad-decimal", () => CcfResults.Ok(new List<PricedItem> { new() { Name = "x", Price = 1.234m } }));
+        app.MapGet("/min/counted", (EnumerationCounter counter, SampleData data) =>
+            CcfResults.Ok(new CountingEnumerable<Product>(data.Products.Take(5), counter)));
+        app.MapGet("/min/counted-bad", (EnumerationCounter counter) =>
+            CcfResults.Ok(new CountingEnumerable<PricedItem>(new[] { new PricedItem { Name = "x", Price = 1.234m } }, counter)));
+        app.MapGet("/min/null", () => CcfResults.Ok<Product?>(null));
         app.MapGet("/min/unsupported", () => CcfResults.Ok(new UnsupportedReport { Title = "report", Details = new { a = 1 } }));
 
         return app;

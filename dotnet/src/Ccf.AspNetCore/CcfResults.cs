@@ -28,43 +28,44 @@ internal sealed class CcfOkResult<T> : IResult
     {
         var services = httpContext.RequestServices;
         var registry = services.GetRequiredService<ISchemaRegistry>();
-        var json = TypedResults.Ok(_value);
+        var path = services.GetRequiredService<CcfPaths>().Http;
 
         if (_value is null)
         {
-            await json.ExecuteAsync(httpContext);
+            await TypedResults.Ok(_value).ExecuteAsync(httpContext);
             return;
         }
 
         var type = typeof(T) == typeof(object) ? _value.GetType() : typeof(T);
-        if (!registry.TryGetSchema(type, out var schema))
+        if (!registry.TryGetSchema(type, path.SchemaOptions, out var schema))
         {
-            await json.ExecuteAsync(httpContext);
+            await TypedResults.Ok(_value).ExecuteAsync(httpContext);
             return;
         }
 
+        // An endpoint that can serve CCF varies on Accept, whichever representation this request gets.
         CcfNegotiation.AddVaryAccept(httpContext.Response);
-        var respect = services.GetRequiredService<IOptions<Microsoft.AspNetCore.Mvc.MvcOptions>>().Value.RespectBrowserAcceptHeader;
-        if (!CcfNegotiation.TryNegotiate(httpContext.Request, respect, out var features))
+        if (!CcfNegotiation.TryNegotiate(httpContext.Request, out var features))
         {
-            await json.ExecuteAsync(httpContext);
+            await TypedResults.Ok(_value).ExecuteAsync(httpContext);
             return;
         }
 
-        var encoder = services.GetRequiredService<CcfEncoder>();
+        // A lazy IEnumerable<T> (LINQ, EF) is enumerated exactly once, here; the JSON fallback reuses the list.
+        var value = ResponseMaterializer.Materialize(_value!);
         var options = services.GetRequiredService<IOptions<CcfOptions>>().Value;
         using var buffer = new PooledBufferWriter();
         CcfPayloadFlags flags;
         try
         {
-            flags = encoder.Encode(_value, schema, features, buffer, options.Limits);
+            flags = path.Encoder.Encode(value, schema, features, buffer, options.Limits);
         }
         catch (CcfEncodeException e)
         {
             services.GetRequiredService<ILoggerFactory>().CreateLogger("Ccf")
                 .LogWarning(e, "CCF encoding of schema {SchemaId} ({Type}) failed; serving JSON instead: {Reason}", schema.IdHex, type, e.Message);
             CcfDiagnostics.RecordEncodeFailure();
-            await json.ExecuteAsync(httpContext);
+            await TypedResults.Ok(value).ExecuteAsync(httpContext);
             return;
         }
 

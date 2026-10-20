@@ -94,11 +94,11 @@ _Exit check passed (2026-10-20): all 15 vectors pass both directions on net8.0 a
 - [x] Logging and the `Ccf` meter (ARCHITECTURE §3.5).
 - [x] Development-only `?ccf=d` override (off unless `AllowQueryOverride` and the environment is Development).
 - [x] `samples/Ccf.SampleApi`: `/products` returning the 500 sample rows (from `test-vectors/v01-products-plain.expected.json`), `/orders`, `/products/{id}`, plus one unsupported type to show fallback.
-- [x] Integration tests (in-process Kestrel host, see Open questions: `WebApplicationFactory` needs a new package): JSON by default; plain CCF for `Accept: application/vnd.ccf` (bytes equal `v01`); dictionary CCF for `features=d` (bytes equal `v02`); single object (`v05`); fallback for unsupported type; schema endpoint 200/404 and headers.
+- [x] Integration tests with `WebApplicationFactory` (plus one real-Kestrel smoke test): JSON by default; plain CCF for `Accept: application/vnd.ccf` (bytes equal `v01`); dictionary CCF for `features=d` (bytes equal `v02`); single object (`v05`); fallback for unsupported type; schema endpoint 200/404 and headers.
 
 **Exit:** the sample API serves JSON, plain CCF and dictionary CCF from one endpoint, byte-identical to the vectors.
 
-_Exit check passed (2026-10-20): `/products` serves JSON, plain CCF (bytes equal `v01`) and dictionary CCF (bytes equal `v02`); `/products/1001` equals `v05`, `/products/empty` `v06`, `/orders` `v04`, `/all-types` `v03`; minimal APIs return the same bytes. 140 AspNetCore tests pass on net8.0 and net10.0._
+_Exit check passed (2026-10-20): `/products` serves JSON, plain CCF (bytes equal `v01`) and dictionary CCF (bytes equal `v02`); `/products/1001` equals `v05`, `/products/empty` `v06`, `/orders` `v04`, `/all-types` `v03`; minimal APIs return the same bytes. 199 AspNetCore tests pass on net8.0 and net10.0; re-run after the owner's phase 2 decisions (new Accept rule, naming per path, single enumeration, Vary)._
 
 ## Phase 3 — `Ccf.Client` (.NET) and `@ccf/client` (TypeScript)
 
@@ -147,15 +147,16 @@ TypeScript
 
 _None open._ Ambiguities found before phase 0 were resolved by the project owner and recorded as SPEC §14 (clarifications v1.0.1). Add new questions here as they come up, with the phase and the SPEC section they concern.
 
-### Decisions taken in phase 2 (please confirm or overrule)
+### Resolved by the project owner after phase 2
 
-1. **Test host without a new package.** The plan says `WebApplicationFactory`, which lives in `Microsoft.AspNetCore.Mvc.Testing` (a new NuGet dependency, not on the pre-approved list). The integration tests instead start the sample app in-process on a real Kestrel socket (`SampleApp.Create` + port 0) and use `HttpClient`. If you prefer `WebApplicationFactory`, approve the package and the tests can be moved over mechanically.
-2. **Accept handling mirrors MVC.** CCF is chosen only when `application/vnd.ccf` is the first servable range after ordering by quality, then specificity, then header position. An `Accept` header containing `*/*` is "no preference" (MVC ignores it unless `MvcOptions.RespectBrowserAcceptHeader` is true), so `application/vnd.ccf, */*;q=0.1` yields JSON; `q=0` means not acceptable. Minimal APIs (`CcfResults`) apply the same rules, so both paths agree.
-3. **`Vary: Accept` scope.** Added to every response whose value type has a CCF schema (JSON ones included), via a result filter for MVC and inside `CcfResults.Ok`. Endpoints returning unsupported types or scalars get no `Vary` because they cannot serve CCF.
-4. **Field naming.** Schemas use MVC's `JsonOptions.JsonSerializerOptions.PropertyNamingPolicy`. Minimal APIs' JSON fallback uses `Http.Json.JsonOptions`; if an app configures those two differently, JSON and CCF names can differ.
-5. **Runtime collection types.** A response whose runtime type is not a supported collection (LINQ iterator, `HashSet<T>`) is served through `IEnumerable<T>`.
-6. **`.WithCcf()` endpoint filter** (marked MAY in ARCHITECTURE §3.3) is not implemented.
-7. **Schema endpoint 404s** carry no cache header, because the id may be registered later.
+1. **Integration tests use `WebApplicationFactory`** (`Microsoft.AspNetCore.Mvc.Testing`, test projects only, approved). One real-Kestrel smoke test (`KestrelSmokeTests`) remains.
+2. **Accept rule.** MVC semantics with one exception, implemented inside CCF (selector wrapper for MVC, same logic in `CcfResults`; `RespectBrowserAcceptHeader` untouched): an explicit `application/vnd.ccf` with `q > 0` wins over `*/*` unless an explicit media type has a higher `q`. `q=0` is not acceptable. Consequences of the literal rule: wildcards never compete (so `*/*;q=0.9, application/vnd.ccf;q=0.2` yields CCF) and equal-`q` explicit ranges keep header order (`application/json, application/vnd.ccf` yields JSON). Tests cover the four requested headers on both paths.
+3. **Naming per path.** CCF uses the JSON options of the path it serves (MVC `JsonOptions`; Http `JsonOptions` for minimal APIs). The registry is keyed by (type, naming policy); a startup warning is logged once if the two policies differ.
+4. **`.WithCcf()`** is skipped; noted in ARCHITECTURE §3.3 as later and optional.
+5. **Single enumeration.** A lazy `IEnumerable<T>` response is materialized exactly once before encoding and the JSON fallback reuses the list; tests with a counting enumerable (controllers and minimal APIs, CCF, fallback and JSON) assert one enumeration. Lazy sequences nested inside an object are enumerated once by the encoder but would be re-enumerated by a JSON fallback; materialize them in the handler if that matters.
+6. **`Vary: Accept`** is sent on every response to a request whose `Accept` mentions `application/vnd.ccf`, whatever the outcome. The earlier rule (JSON responses of CCF-capable endpoints vary too, SPEC §2.3 MUST) is kept as well.
+
+Smaller choices kept from phase 2: runtime collection types (LINQ iterators, `HashSet<T>`) are served through `IEnumerable<T>`; schema 404s carry no cache header (the id may be registered later).
 
 ### Decisions taken in phase 1 that go beyond SPEC §14 (please confirm or overrule)
 

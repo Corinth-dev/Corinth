@@ -7,9 +7,8 @@ using Microsoft.Extensions.Logging;
 namespace Ccf.AspNetCore.Tests;
 
 /// <summary>
-/// Runs the sample application in-process on a real Kestrel socket (port 0) and gives tests an HttpClient.
-/// (WebApplicationFactory would need the Microsoft.AspNetCore.Mvc.Testing package; a real socket needs nothing
-/// beyond the framework.)
+/// Runs the sample application on a real Kestrel socket (port 0). Used only for the smoke test that proves the
+/// bytes also survive a real TCP connection; every other test uses <see cref="TestHost"/>.
 /// </summary>
 public sealed class SampleHost : IAsyncDisposable
 {
@@ -28,8 +27,7 @@ public sealed class SampleHost : IAsyncDisposable
 
     public IServiceProvider Services => _app.Services;
 
-    public static async Task<SampleHost> StartAsync(
-        Action<WebApplicationBuilder>? configure = null, string environment = "Production", bool preRegisterSchemas = true)
+    public static async Task<SampleHost> StartAsync(Action<WebApplicationBuilder>? configure = null, string environment = "Production")
     {
         var logs = new ConcurrentQueue<LogEntry>();
         var app = SampleApp.Create(
@@ -41,8 +39,7 @@ public sealed class SampleHost : IAsyncDisposable
                 builder.Logging.SetMinimumLevel(LogLevel.Debug);
                 builder.Logging.AddProvider(new CapturingLoggerProvider(logs));
                 configure?.Invoke(builder);
-            },
-            preRegisterSchemas);
+            });
         await app.StartAsync();
         var client = new HttpClient(new HttpClientHandler { AutomaticDecompression = System.Net.DecompressionMethods.None })
         {
