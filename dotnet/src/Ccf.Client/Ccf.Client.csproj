@@ -6,4 +6,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Ccf.Core\Ccf.Core.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Ccf.Client.Tests" />
+  </ItemGroup>
 </Project>
