@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync } from "node:fs";
-import { CcfSchemaError, CcfSchemaFetchError, parseSchema, verifySchema } from "@ccf/client";
+import { CcfSchemaError, CcfSchemaFetchError, parseSchema, verifySchema } from "@skm/ccf-client";
 import { type TypegenOptions, generateTypes } from "./generate.js";
 
 /** Where the CLI reads and writes; replaceable in tests. */

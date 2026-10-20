@@ -36,7 +36,7 @@ What is **not** recorded: JSON responses to clients that did not ask for CCF, an
 
 - `ccf_encode_failures_total` rate above 0 for 10 minutes: a data change (a decimal with extra digits, a new null) is forcing JSON on a CCF endpoint.
 - `json-fallback` share of `ccf.responses` above, say, 1%.
-- Client side (your own telemetry): any spike in the .NET client warning "repeating the request as JSON" or in `@ccf/client`'s `log` callback.
+- Client side (your own telemetry): any spike in the .NET client warning "repeating the request as JSON" or in `@skm/ccf-client`'s `log` callback.
 
 ## Gaps (not covered by the current instruments)
 

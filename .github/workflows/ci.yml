@@ -8,6 +8,10 @@ on:
     - cron: "17 3 * * *" # nightly: the one-hour decoder fuzz run (job `fuzz-nightly`)
   workflow_dispatch:
 
+env:
+  # Deterministic builds with Source Link paths (see dotnet/src/Directory.Build.props).
+  ContinuousIntegrationBuild: "true"
+
 jobs:
   dotnet:
     runs-on: ubuntu-latest
@@ -80,6 +84,8 @@ jobs:
       - run: npm test
       # Both npm packages must pack with the files a consumer needs.
       - run: npm pack --dry-run --workspaces
+      # Each package carries the same LICENSE as the repository root.
+      - run: for p in client typegen; do diff ../LICENSE packages/$p/LICENSE; done
 
   js-browser:
     # The decoder, client, IndexedDB cache and the pure-JS SHA-256 fallback in real Chromium, Firefox and WebKit.

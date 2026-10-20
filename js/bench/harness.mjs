@@ -29,7 +29,7 @@ async function time(fn, samples = 25) {
 }
 
 /**
- * @param {object} api       `{ decode, parseSchema }` from @ccf/client
+ * @param {object} api       `{ decode, parseSchema }` from @skm/ccf-client
  * @param {Array}  datasets  `{ name, rows, schema, json, gz, plain, dict, br? }` (Uint8Array / string)
  * @param {object} env       `{ gunzip(bytes): Promise<Uint8Array>, brotli?(bytes): Uint8Array }`
  */

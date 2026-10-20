@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <PackageId>SKM.Ccf.Core</PackageId>
     <RootNamespace>Ccf</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Description>CCF (Columnar Compact Format): schema, encoder and decoder for a compact binary, column-oriented response format. No dependencies beyond the .NET base class library.</Description>

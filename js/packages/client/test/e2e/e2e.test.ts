@@ -27,7 +27,7 @@ function spy() {
   return { fetch: fn, seen, schemaFetches: () => seen.filter((s) => s.url.includes("/ccf/schemas/")).length };
 }
 
-describe("@ccf/client against the .NET sample API", () => {
+describe("@skm/ccf-client against the .NET sample API", () => {
   it("returns exactly what the server's own JSON contains", async () => {
     const s = spy();
     const client = createCcfClient({ baseUrl: sample.origin, fetch: s.fetch });

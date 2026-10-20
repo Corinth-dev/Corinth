@@ -10,10 +10,10 @@
 
 ## Packages
 
-All packages follow **SemVer 2.0**, and `Ccf.Core`, `Ccf.AspNetCore`, `Ccf.Client` (NuGet) and `@ccf/client`, `@ccf/typegen` (npm) are released together with one version number.
+All packages follow **SemVer 2.0**, and `Ccf.Core`, `Ccf.AspNetCore`, `Ccf.Client` (NuGet) and `@skm/ccf-client`, `@skm/ccf-typegen` (npm) are released together with one version number.
 
 - `0.x`: the public API may still change in minor releases; each release notes the changes. Wire compatibility is not affected: any `0.x` reader and writer interoperate on format version 1, feature `d`.
 - From `1.0.0`: breaking changes to the public API only in a major release; new features and options in minor releases; fixes in patch releases. `EnablePackageValidation` (NuGet) guards against accidental breaks once a baseline version exists.
 - A package supports every format feature it lists in its README; a reader never needs to be newer than the server unless the server uses a feature the client advertised, which the client controls.
 - Supported runtimes: .NET 8 and .NET 10 (`net8.0;net10.0`); Node 20+ and current browsers. Dropping a runtime is a minor release in `0.x` and a major release afterwards.
-- `@ccf/typegen` depends on the exact same `@ccf/client` version.
+- `@skm/ccf-typegen` depends on the exact same `@skm/ccf-client` version.

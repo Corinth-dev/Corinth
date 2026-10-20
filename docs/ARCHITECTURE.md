@@ -38,7 +38,7 @@ flowchart LR
 | `Ccf.Core` (.NET) | Schema model, canonicalizer, hasher, schema builder, encoder, decoder, limits, errors | Nothing outside the BCL |
 | `Ccf.AspNetCore` (.NET) | `AddCcf`, output formatter, `CcfResults`, schema endpoint, options | `Ccf.Core`, ASP.NET Core |
 | `Ccf.Client` (.NET) | `HttpClient` extensions, schema cache, JSON fallback | `Ccf.Core`, `System.Net.Http.Json`, `Microsoft.Extensions.Logging.Abstractions` |
-| `@ccf/client` (npm) | Decoder, schema cache, `fetch` wrapper, TS type generator CLI | None at runtime |
+| `@skm/ccf-client` (npm) | Decoder, schema cache, `fetch` wrapper, TS type generator CLI | None at runtime |
 
 ## 3. Server: ASP.NET Core integration
 
@@ -166,7 +166,7 @@ If any reachable member is unsupported, the whole response type is unsupported a
 - Decodes into `T` by matching schema field names to properties with the same naming rules as the server (§5.2). Schema fields with no matching property are skipped (block length); properties with no matching field keep their default. Matching is by exact JSON name first, then case-insensitively. Narrowing into a smaller CLR type is range-checked (`ValueOutOfRange`). A CLR type that cannot receive the schema (incompatible property type, abstract type, several rows into a single object) raises `InvalidOperationException`: a usage error, not a format error. Datetimes outside the .NET `DateTime` range (years 1–9999) are rejected by the .NET decoder with `ValueOutOfRange`.
 - Decimals decode exactly to `decimal`; datetimes to `DateTimeOffset` (offset 0) or `DateTime` (Kind Utc).
 
-### 6.3 TypeScript client (`@ccf/client`)
+### 6.3 TypeScript client (`@skm/ccf-client`)
 
 - Runs in browsers and Node 20+; ES modules; zero runtime dependencies; uses `DataView`, `TextDecoder("utf-8", { fatal: true, ignoreBOM: true })` (the BOM is data, not a marker).
 - `createCcfClient({ baseUrl?, fetch?, schemaCache?, features?, schemaPathPrefix?, int64?, decimal?, limits?, isIdempotent?, log? })` → `client.get<T>(path, init?)`, `client.request<T>(path, { method, body, idempotent, … })`, `client.getSchema(id, origin)`. Lower level: `decode(bytes, schema, options)` (synchronous), `readSchemaId(bytes)`, `parseSchema(text)` (**async**: it hashes with WebCrypto, falling back to a built-in pure-JS SHA-256 where `crypto.subtle` is unavailable, such as insecure browser origins), `verifySchema(id, text)`.
@@ -295,7 +295,7 @@ Consequences for rollout: opt in per endpoint, prefer endpoints with repetitive 
 ## 10. Operating and releasing
 
 - Enabling CCF on an API: `docs/GUIDE.md`. Metrics, dashboards and alerts: `docs/OBSERVABILITY.md`. Versioning and compatibility rules: `docs/VERSIONING.md`.
-- Packages (version 0.1.0): NuGet `Ccf.Core`, `Ccf.AspNetCore`, `Ccf.Client`; npm `@ccf/client` and `@ccf/typegen` (the CLI command is `ccf-typegen`).
+- Packages (version 0.1.0): NuGet `Ccf.Core`, `Ccf.AspNetCore`, `Ccf.Client`; npm `@skm/ccf-client` and `@skm/ccf-typegen` (the CLI command is `ccf-typegen`).
 
 ## 11. Future
 

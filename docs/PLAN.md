@@ -21,7 +21,7 @@ Work through the phases in order. Tick a box only when its work is done and its 
   benchmarks/Ccf.Benchmarks/
 /js/
   package.json              workspace root
-  packages/client/          @ccf/client (src/, test/)
+  packages/client/          @skm/ccf-client (src/, test/)
   packages/typegen/         ccf-typegen CLI
   bench/
 ```
@@ -100,7 +100,7 @@ _Exit check passed (2026-10-20): all 15 vectors pass both directions on net8.0 a
 
 _Exit check passed (2026-10-20): `/products` serves JSON, plain CCF (bytes equal `v01`) and dictionary CCF (bytes equal `v02`); `/products/1001` equals `v05`, `/products/empty` `v06`, `/orders` `v04`, `/all-types` `v03`; minimal APIs return the same bytes. 199 AspNetCore tests pass on net8.0 and net10.0; re-run after the owner's phase 2 decisions (new Accept rule, naming per path, single enumeration, Vary)._
 
-## Phase 3 — `Ccf.Client` (.NET) and `@ccf/client` (TypeScript)
+## Phase 3 — `Ccf.Client` (.NET) and `@skm/ccf-client` (TypeScript)
 
 .NET
 - [x] `GetFromCcfAsync<T>` with Accept header, schema fetch + hash check + cache, single-flight per schema id, JSON retry rules (ARCHITECTURE §6.1).
@@ -135,7 +135,7 @@ _Exit check passed (2026-10-20): .NET and TypeScript decoders both pass all 15 v
 
 ## Phase 5 — Rollout readiness
 
-- [x] Package metadata, READMEs and XML docs for the three NuGet packages and the npm packages. _Version 0.1.0 (SemVer, one number for all packages); `dotnet pack` of Ccf.Core, Ccf.AspNetCore and Ccf.Client and `npm pack` of `@ccf/client` and `@ccf/typegen` run in CI; a throwaway consumer project installed the .nupkg files and the tarballs and decoded a golden vector. `@ccf/typegen` is the new name of the unscoped `ccf-typegen` package (the command is still `ccf-typegen`). License and package-name ownership are open: see Open questions._
+- [x] Package metadata, READMEs and XML docs for the three NuGet packages and the npm packages. _Version 0.1.0 (SemVer, one number for all packages); `dotnet pack` of Ccf.Core, Ccf.AspNetCore and Ccf.Client and `npm pack` of `@skm/ccf-client` and `@skm/ccf-typegen` run in CI; a throwaway consumer project installed the .nupkg files and the tarballs and decoded a golden vector. `@skm/ccf-typegen` is the new name of the unscoped `ccf-typegen` package (the command is still `ccf-typegen`). License and package-name ownership are open: see Open questions._
 - [x] Opt-in guide: enabling CCF on selected endpoints, pre-registering schemas, configuration reference. _`docs/GUIDE.md`._
 - [x] Dashboards/queries for the `Ccf` meter: share of responses served as CCF, fallbacks, encode failures, bytes saved. _`docs/OBSERVABILITY.md` (PromQL panels and alerts). Two questions cannot be answered with the current instruments; see Open questions._
 - [ ] Browser tests on WebKit and Firefox as well as Chromium (the pinned `playwright-core@1.56.1`; CI installs the matching browsers). _The test takes `CCF_BROWSER=chromium|firefox|webkit` and CI runs a three-engine matrix; Chromium passes locally, the other two could not be downloaded in the sandbox and are verified by CI only. Tick when CI is green._
@@ -165,7 +165,7 @@ Ambiguities found before phase 0 were resolved by the project owner and recorded
 4. **Client behaviour**, documented in both client READMEs: `204 No Content` and an empty body give `null`; only a CCF format error or an unverifiable schema triggers the JSON retry, only for requests safe to repeat; HTTP error statuses and usage errors surface unchanged; the TS `int64: "number"` `RangeError` beyond 2^53 is intentional (JSON would silently lose precision) and is never retried.
 5. **End-to-end CI job is required** on pull requests: `js-e2e` runs on every PR, and an aggregate `required` job gives one check name to mark as required in branch protection (a repository setting that must be switched on by an admin; it cannot be done from the workflow). The command is in CLAUDE.md.
 
-Kept as decided earlier in phase 3: TS decimals default to `number` (`decimal: "string"` is exact); schema verification is strict (hash and canonical form, no cross-origin redirects, persistent entries re-verified); `ccf-typegen` depends on `@ccf/client`; the end-to-end test needs the .NET SDK and is a separate script and CI job; no on-disk `ICcfSchemaCache` ships.
+Kept as decided earlier in phase 3: TS decimals default to `number` (`decimal: "string"` is exact); schema verification is strict (hash and canonical form, no cross-origin redirects, persistent entries re-verified); `ccf-typegen` depends on `@skm/ccf-client`; the end-to-end test needs the .NET SDK and is a separate script and CI job; no on-disk `ICcfSchemaCache` ships.
 
 ### Resolved by the project owner after phase 2
 

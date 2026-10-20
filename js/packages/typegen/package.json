@@ -1,5 +1,5 @@
 {
-  "name": "@ccf/typegen",
+  "name": "@skm/ccf-typegen",
   "version": "0.1.0",
   "description": "Generates TypeScript interfaces from CCF schemas",
   "type": "module",
@@ -16,13 +16,14 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "LICENSE"
   ],
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
-    "@ccf/client": "0.1.0"
+    "@skm/ccf-client": "0.1.0"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

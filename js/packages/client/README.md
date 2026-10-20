@@ -1,15 +1,15 @@
-# @ccf/client
+# @skm/ccf-client
 
 CCF (Columnar Compact Format) client for browsers and Node 20+. Zero runtime dependencies, ES modules, strict TypeScript.
 
 ```ts
-import { createCcfClient, IndexedDbSchemaCache } from "@ccf/client";
+import { createCcfClient, IndexedDbSchemaCache } from "@skm/ccf-client";
 
 const ccf = createCcfClient({ baseUrl: "https://api.example.com", schemaCache: new IndexedDbSchemaCache() });
 const products = await ccf.get<Product[]>("/products"); // CCF when the server offers it, JSON otherwise
 ```
 
-Create the client once and reuse it: the schema cache and the single-flight schema fetch live inside it. Generate the `Product` type with `ccf-typegen` (`@ccf/typegen`).
+Create the client once and reuse it: the schema cache and the single-flight schema fetch live inside it. Generate the `Product` type with `ccf-typegen` (`@skm/ccf-typegen`).
 
 ## Behaviour you should know
 

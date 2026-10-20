@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <PackageId>SKM.Ccf.Client</PackageId>
     <RootNamespace>Ccf.Client</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Description>HttpClient helper for CCF (Columnar Compact Format): asks for CCF, verifies and caches schemas, decodes into your types and falls back to JSON.</Description>

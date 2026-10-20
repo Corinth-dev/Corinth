@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseSchema } from "@ccf/client";
+import { parseSchema } from "@skm/ccf-client";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 import { type CliIo, generateTypes, main, pascal } from "../src/index.js";

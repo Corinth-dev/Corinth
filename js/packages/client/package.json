@@ -1,5 +1,5 @@
 {
-  "name": "@ccf/client",
+  "name": "@skm/ccf-client",
   "version": "0.1.0",
   "description": "CCF (Columnar Compact Format) client for browsers and Node 20+",
   "type": "module",
@@ -14,7 +14,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "LICENSE"
   ],
   "engines": {
     "node": ">=20"
