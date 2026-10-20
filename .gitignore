@@ -429,3 +429,4 @@ FodyWeavers.xsd
 
 # JS build output
 js/**/dist/
+bench-data/
