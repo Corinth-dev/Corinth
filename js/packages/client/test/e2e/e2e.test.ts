@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createCcfClient, decode, parseSchema } from "../../src/index.js";
 import { toCanonical } from "../support/subject.js";
 import { readExpected, readPayload, readSchemaText, vectors } from "../support/vectors.js";
@@ -109,5 +109,66 @@ describe("@skm/ccf-client against the .NET sample API", () => {
 
     const noSchemas = createCcfClient({ baseUrl: sample.origin, schemaPathPrefix: "/wrong/prefix" });
     expect(await noSchemas.get<unknown[]>("/products")).toHaveLength(500); // schema 404 → JSON retry
+  });
+});
+
+/** The Scalar viewer script the sample serves (/ccf/scalar-viewer.js), run here with a fake localStorage. */
+describe("the sample's Scalar viewer script", () => {
+  const storage = new Map<string, string>();
+  let customFetch: typeof fetch;
+
+  beforeAll(async () => {
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => storage.get(k) ?? null,
+      setItem: (k: string, v: string) => void storage.set(k, v),
+    });
+    const source = await (await fetch(`${sample.origin}/ccf/scalar-viewer.js`)).text();
+    const module = (await import(`data:text/javascript;base64,${Buffer.from(source).toString("base64")}`)) as {
+      default: { customFetch: typeof fetch };
+    };
+    customFetch = module.default.customFetch;
+  });
+
+  afterAll(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const ccf = { headers: { Accept: "application/vnd.ccf" } };
+
+  it("shows the CCF response untouched while the toggle is off (the default)", async () => {
+    storage.clear();
+    const response = await customFetch(`${sample.origin}/min/products`, ccf);
+
+    expect(response.headers.get("content-type")).toBe("application/vnd.ccf");
+    expect(response.headers.get("x-ccf-decoded")).toBeNull();
+    expect((await response.arrayBuffer()).byteLength).toBe(9317);
+  });
+
+  it("shows the decoded JSON, with the x-ccf headers, while the toggle is on", async () => {
+    storage.set("ccf-scalar-decode", "on");
+    const response = await customFetch(`${sample.origin}/min/products`, ccf);
+
+    expect(response.headers.get("content-type")).toContain("application/json");
+    expect(response.headers.get("x-ccf-decoded")).toBe("true");
+    expect(response.headers.get("x-ccf-payload-bytes")).toBe("9317");
+    expect(response.headers.get("x-ccf-schema-id")).toBe("c33a3ed0");
+    expect(response.headers.get("x-ccf-original-content-type")).toBe("application/vnd.ccf");
+    const viaJson = await (await fetch(`${sample.origin}/min/products`, { headers: { Accept: "application/json" } })).json();
+    expect(await response.json()).toEqual(viaJson);
+  });
+
+  it("follows the toggle from one request to the next", async () => {
+    storage.set("ccf-scalar-decode", "on");
+    expect((await customFetch(`${sample.origin}/products/1001`, ccf)).headers.get("x-ccf-decoded")).toBe("true");
+    storage.set("ccf-scalar-decode", "off");
+    expect((await customFetch(`${sample.origin}/products/1001`, ccf)).headers.get("x-ccf-decoded")).toBeNull();
+  });
+
+  it("leaves JSON responses alone even when the toggle is on", async () => {
+    storage.set("ccf-scalar-decode", "on");
+    const response = await customFetch(`${sample.origin}/min/products`, { headers: { Accept: "application/json" } });
+
+    expect(response.headers.get("x-ccf-decoded")).toBeNull();
+    expect(((await response.json()) as unknown[]).length).toBe(500);
   });
 });

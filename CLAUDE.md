@@ -54,7 +54,7 @@ npm run build
 # Run the sample API (JSON by default; try `curl -H 'Accept: application/vnd.ccf; features=d' http://localhost:5000/products`)
 cd dotnet && dotnet run --project samples/Ccf.SampleApi
 # The sample also serves its OpenAPI document at /openapi/v1.json and the Scalar UI at /scalar/v1 (CCF-capable operations list application/vnd.ccf).
-# To read a CCF response in Scalar, send the request with `Accept: application/vnd.ccf`: a script (/ccf/scalar-viewer.js) posts the payload to POST /ccf/decode and Scalar shows the decoded JSON (x-ccf-* response headers show size and schema id).
+# To read a CCF response in Scalar, send the request with `Accept: application/vnd.ccf` and switch the "CCF decode" toggle (bottom right, off by default) ON before sending: a script (/ccf/scalar-viewer.js) posts the payload to POST /ccf/decode and Scalar shows the decoded JSON (x-ccf-* response headers show size and schema id). OFF shows the raw binary response.
 
 # TypeScript: real Chromium (needs `npx playwright-core install chromium` once)
 cd js && npm run test:browser

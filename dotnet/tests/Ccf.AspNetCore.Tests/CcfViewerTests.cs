@@ -85,6 +85,8 @@ public class CcfViewerTests
         var text = await script.Content.ReadAsStringAsync();
         Assert.Contains("customFetch", text);
         Assert.Contains("/ccf/decode", text);
+        Assert.Contains("ccf-decode-toggle", text);   // the page-level toggle
+        Assert.Contains("localStorage", text);        // remembered in the browser, off by default
         Assert.Contains("/ccf/scalar-viewer.js", await host.Client.GetStringAsync("/scalar/v1"));
     }
 
