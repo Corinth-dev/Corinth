@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using Ccf.AspNetCore;
+using Ccf.Scalar;
 using Scalar.AspNetCore;
 
 namespace Ccf.SampleApi;
@@ -43,8 +44,8 @@ public static class SampleApp
 
         // OpenAPI document (/openapi/v1.json) and the Scalar UI (/scalar/v1, Scalar's default path).
         app.MapOpenApi();
-        CcfViewer.Map(app);
-        app.MapScalarApiReference(o => o.WithTitle("CCF sample API").DisableDefaultFonts().WithJavaScriptConfiguration(CcfViewer.ScriptPath));
+        app.MapCcfViewer();                     // POST /ccf/decode and the script (Development only)
+        app.MapScalarApiReference(o => o.WithTitle("CCF sample API").DisableDefaultFonts().WithCcfViewer());
 
         // The same data through minimal APIs: CcfResults.Ok opts each endpoint in; Produces<T> describes it for OpenAPI.
         var minimal = app.MapGroup("/min").WithTags("Minimal APIs");

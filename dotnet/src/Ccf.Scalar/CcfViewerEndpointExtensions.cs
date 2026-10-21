@@ -1,33 +1,55 @@
 using System.Buffers;
 using System.Globalization;
-using System.Reflection;
 using System.Text.Json;
 using Ccf.AspNetCore;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
-namespace Ccf.SampleApi;
+namespace Ccf.Scalar;
 
-/// <summary>
-/// A development aid for looking at CCF in the browser: <c>POST /ccf/decode</c> turns a CCF payload into JSON, and a
-/// small script (<c>/ccf/scalar-viewer.js</c>) makes the Scalar UI use it, so a CCF response sent from Scalar is shown
-/// as the JSON it encodes. Uses only the public decoder and the schema registry.
-/// </summary>
-internal static class CcfViewer
+/// <summary>Maps the endpoints behind the CCF toggle of the Scalar API reference.</summary>
+public static class CcfViewerEndpointExtensions
 {
-    public const string ScriptPath = "/ccf/scalar-viewer.js";
-
-    public static void Map(WebApplication app)
+    /// <summary>
+    /// Maps <c>POST /ccf/decode</c> (decodes a CCF payload with the public decoder and the schema registry of
+    /// <c>AddCcf</c>, and answers JSON) and <c>GET /ccf/scalar-viewer.js</c> (the script Scalar loads through
+    /// <see cref="CcfScalarExtensions.WithCcfViewer"/>).
+    /// </summary>
+    /// <remarks>
+    /// Outside the Development environment (unless <see cref="CcfViewerOptions.EnableOutsideDevelopment"/> is set)
+    /// the decode endpoint is not mapped and the script is an empty module, so the toggle does not appear.
+    /// The returned builder carries conventions to every viewer endpoint, for example
+    /// <c>MapCcfViewer().RequireAuthorization()</c>.
+    /// </remarks>
+    /// <returns>A group builder for the viewer endpoints.</returns>
+    public static RouteGroupBuilder MapCcfViewer(this IEndpointRouteBuilder endpoints, Action<CcfViewerOptions>? configure = null)
     {
-        app.MapPost("/ccf/decode", DecodeAsync)
-            .WithTags("CCF")
-            .WithSummary("Decodes a CCF payload (the request body) into JSON, using the schema registered for its schema id.")
-            .Accepts<byte[]>("application/vnd.ccf")
-            .Produces(StatusCodes.Status200OK, contentType: "application/json")
-            .Produces(StatusCodes.Status400BadRequest)
-            .Produces(StatusCodes.Status404NotFound);
+        ArgumentNullException.ThrowIfNull(endpoints);
+        var options = new CcfViewerOptions();
+        configure?.Invoke(options);
 
-        var script = ReadScript();
-        app.MapGet(ScriptPath, () => Results.Text(script, "text/javascript")).ExcludeFromDescription();
+        var group = endpoints.MapGroup(string.Empty);
+        var enabled = options.EnableOutsideDevelopment || endpoints.ServiceProvider.GetRequiredService<IHostEnvironment>().IsDevelopment();
+
+        var script = enabled ? ViewerScript.Text : "export default {};\n";
+        group.MapGet(CcfViewer.ScriptPath, () => Results.Text(script, "text/javascript")).ExcludeFromDescription();
+
+        if (enabled)
+        {
+            group.MapPost(CcfViewer.DecodePath, DecodeAsync)
+                .WithTags("CCF")
+                .WithSummary("Decodes a CCF payload (the request body) into JSON, using the schema registered for its schema id.")
+                .Accepts<byte[]>("application/vnd.ccf")
+                .Produces(StatusCodes.Status200OK, contentType: "application/json")
+                .Produces(StatusCodes.Status400BadRequest)
+                .Produces(StatusCodes.Status404NotFound);
+        }
+
+        return group;
     }
 
     private static async Task<IResult> DecodeAsync(HttpRequest request, ISchemaRegistry registry, IOptions<CcfOptions> options)
@@ -134,12 +156,17 @@ internal static class CcfViewer
             default: w.WriteStringValue(Convert.ToString(value, CultureInfo.InvariantCulture)); break;
         }
     }
+}
 
-    private static string ReadScript()
+internal static class ViewerScript
+{
+    public static readonly string Text = Read();
+
+    private static string Read()
     {
-        var assembly = typeof(CcfViewer).Assembly;
-        var name = assembly.GetManifestResourceNames().Single(n => n.EndsWith("scalar-viewer.js", StringComparison.Ordinal));
-        using var reader = new StreamReader(assembly.GetManifestResourceStream(name)!);
+        using var stream = typeof(ViewerScript).Assembly.GetManifestResourceStream("Ccf.Scalar.scalar-viewer.js")
+            ?? throw new InvalidOperationException("The embedded CCF viewer script is missing.");
+        using var reader = new StreamReader(stream);
         return reader.ReadToEnd();
     }
 }

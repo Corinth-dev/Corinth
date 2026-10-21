@@ -4,7 +4,7 @@ using Xunit;
 
 namespace Ccf.AspNetCore.Tests;
 
-/// <summary>The sample's CCF viewer for Scalar: <c>POST /ccf/decode</c> and the script that wires it into the UI.</summary>
+/// <summary>The CCF viewer of <c>SKM.Ccf.Scalar</c> as used by the sample (Development): <c>POST /ccf/decode</c> and the script that wires it into Scalar.</summary>
 public class CcfViewerTests
 {
     private static async Task<HttpResponseMessage> DecodeAsync(TestHost host, byte[] payload)
@@ -24,7 +24,7 @@ public class CcfViewerTests
     [InlineData("/all-types", "application/vnd.ccf")]               // every scalar type
     public async Task A_ccf_response_decodes_to_the_json_the_endpoint_serves(string path, string accept)
     {
-        await using var host = await TestHost.StartAsync();
+        await using var host = await TestHost.StartAsync("Development");
         var (response, payload) = await host.GetBytesAsync(path, accept);
         Assert.StartsWith("application/vnd.ccf", response.Content.Headers.ContentType?.ToString());
         var expected = JsonNode.Parse(await host.Client.GetStringAsync(path));
@@ -40,7 +40,7 @@ public class CcfViewerTests
     [Fact]
     public async Task A_malformed_payload_is_a_400_with_the_error_code()
     {
-        await using var host = await TestHost.StartAsync();
+        await using var host = await TestHost.StartAsync("Development");
         var (_, payload) = await host.GetBytesAsync("/products", "application/vnd.ccf");
 
         var truncated = await DecodeAsync(host, payload[..^3]);
@@ -54,7 +54,7 @@ public class CcfViewerTests
     [Fact]
     public async Task A_payload_with_an_unknown_schema_id_is_a_404()
     {
-        await using var host = await TestHost.StartAsync();
+        await using var host = await TestHost.StartAsync("Development");
         var (_, payload) = await host.GetBytesAsync("/products/empty", "application/vnd.ccf");
         payload[4] ^= 0xFF; // the schema id lives in bytes 4-7
 
@@ -67,7 +67,7 @@ public class CcfViewerTests
     [Fact]
     public async Task The_payload_size_limit_applies()
     {
-        await using var host = await TestHost.StartAsync(config: new() { ["Ccf:Limits:MaxPayloadBytes"] = "100" });
+        await using var host = await TestHost.StartAsync("Development", config: new() { ["Ccf:Limits:MaxPayloadBytes"] = "100" });
         var (_, payload) = await host.GetBytesAsync("/products/empty", "application/vnd.ccf"); // 19 bytes: small enough to encode
 
         Assert.Equal(HttpStatusCode.OK, (await DecodeAsync(host, payload)).StatusCode);
@@ -77,7 +77,7 @@ public class CcfViewerTests
     [Fact]
     public async Task The_script_is_served_and_scalar_is_configured_to_load_it()
     {
-        await using var host = await TestHost.StartAsync();
+        await using var host = await TestHost.StartAsync("Development");
         var script = await host.GetAsync("/ccf/scalar-viewer.js");
 
         Assert.Equal(HttpStatusCode.OK, script.StatusCode);
@@ -93,7 +93,7 @@ public class CcfViewerTests
     [Fact]
     public async Task The_decode_endpoint_is_documented_and_the_script_is_not()
     {
-        await using var host = await TestHost.StartAsync();
+        await using var host = await TestHost.StartAsync("Development");
         var document = JsonNode.Parse(await host.Client.GetStringAsync("/openapi/v1.json"))!;
         var paths = document["paths"]!.AsObject();
 

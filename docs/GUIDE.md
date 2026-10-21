@@ -85,7 +85,19 @@ In code, `Limits` is an init-only object: `o.Limits = new CcfLimits { MaxRows = 
 - **Browser / Node:** `createCcfClient({ baseUrl })`, with `IndexedDbSchemaCache` to persist schemas across page loads. `ccf-typegen` generates TypeScript types from a schema. int64 values beyond 2^53 throw `RangeError` unless you ask for `int64: "bigint"`.
 - Anything else keeps getting JSON.
 
-## 9. Troubleshooting
+## 9. Seeing CCF in OpenAPI and Scalar (optional, development)
+
+`SKM.Ccf.Scalar` makes CCF visible in your OpenAPI document and in the Scalar API reference:
+
+```csharp
+builder.Services.AddOpenApi(o => o.AddCcf());
+app.MapCcfViewer();                                  // POST /ccf/decode + script, Development only
+app.MapScalarApiReference(o => o.WithCcfViewer());   // the "CCF decode" toggle
+```
+
+Operations whose response type has a CCF schema list an `application/vnd.ccf` response (minimal APIs must declare `Produces<T>()`). In Scalar, send a request with `accept: application/vnd.ccf`: with the **CCF decode** toggle OFF (default) you see the raw binary response, with it ON the decoded JSON; the toggle applies to the next request. The decode endpoint has no authentication and is mapped only in Development unless you enable it and protect it (`MapCcfViewer(o => o.EnableOutsideDevelopment = true).RequireAuthorization(...)`). See the package README.
+
+## 10. Troubleshooting
 
 | Symptom | Likely cause |
 | --- | --- |
