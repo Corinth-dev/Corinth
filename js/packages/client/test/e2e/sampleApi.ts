@@ -11,7 +11,10 @@ export interface RunningSample {
   stop(): Promise<void>;
 }
 
-/** Builds (if needed) and starts the sample API on a free port. `CCF_SAMPLE_DLL` overrides the assembly path. */
+/**
+ * Builds (if needed) and starts the sample API on a free port, in the Development environment (the CCF viewer for
+ * Scalar is mapped only there). `CCF_SAMPLE_DLL` overrides the assembly path.
+ */
 export async function startSample(): Promise<RunningSample> {
   const dll =
     process.env["CCF_SAMPLE_DLL"] ??
@@ -20,7 +23,7 @@ export async function startSample(): Promise<RunningSample> {
 
   const child: ChildProcess = spawn("dotnet", [dll], {
     cwd: dirname(dll),
-    env: { ...process.env, ASPNETCORE_URLS: "http://127.0.0.1:0", ASPNETCORE_ENVIRONMENT: "Production", DOTNET_NOLOGO: "1" },
+    env: { ...process.env, ASPNETCORE_URLS: "http://127.0.0.1:0", ASPNETCORE_ENVIRONMENT: "Development", DOTNET_NOLOGO: "1" },
     stdio: ["ignore", "pipe", "pipe"],
   });
 

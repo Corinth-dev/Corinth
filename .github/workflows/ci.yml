@@ -33,6 +33,7 @@ jobs:
           dotnet pack src/Ccf.Core -c Release --no-build -o artifacts
           dotnet pack src/Ccf.AspNetCore -c Release --no-build -o artifacts
           dotnet pack src/Ccf.Client -c Release --no-build -o artifacts
+          dotnet pack src/Ccf.Scalar -c Release --no-build -o artifacts
       - uses: actions/upload-artifact@v4
         with:
           name: nuget-packages
@@ -124,6 +125,9 @@ jobs:
       - run: npm ci
         working-directory: js
       - run: npm run build
+        working-directory: js
+      # The Scalar toggle test drives the real Scalar UI in Chromium (the version matching the pinned playwright-core).
+      - run: npx --no-install playwright-core install --with-deps chromium
         working-directory: js
       - run: npm run test:e2e
         working-directory: js

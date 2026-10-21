@@ -53,12 +53,12 @@ npm run build
 
 # Run the sample API (JSON by default; try `curl -H 'Accept: application/vnd.ccf; features=d' http://localhost:5000/products`)
 cd dotnet && dotnet run --project samples/Ccf.SampleApi
-# The sample also serves its OpenAPI document at /openapi/v1.json and the Scalar UI at /scalar/v1 (CCF-capable operations list application/vnd.ccf).
-# To read a CCF response in Scalar, send the request with `Accept: application/vnd.ccf`: a script (/ccf/scalar-viewer.js) posts the payload to POST /ccf/decode and Scalar shows the decoded JSON (x-ccf-* response headers show size and schema id).
+# The sample also serves its OpenAPI document at /openapi/v1.json and the Scalar UI at /scalar/v1 (CCF-capable operations list application/vnd.ccf; both come from the SKM.Ccf.Scalar package in src/Ccf.Scalar, the CCF viewer is mapped in Development only).
+# To read a CCF response in Scalar, send the request with `Accept: application/vnd.ccf` and switch the "CCF decode" toggle (bottom right, off by default) ON before sending: a script (/ccf/scalar-viewer.js) posts the payload to POST /ccf/decode and Scalar shows the decoded JSON (x-ccf-* response headers show size and schema id). OFF shows the raw binary response.
 
 # TypeScript: real Chromium (needs `npx playwright-core install chromium` once)
 cd js && npm run test:browser
-# TypeScript client against the real .NET sample API (needs the .NET SDK; builds and starts the sample itself).
+# TypeScript client against the real .NET sample API, and the Scalar toggle in real Chromium (needs the .NET SDK and `npx playwright-core install chromium`; builds and starts the sample itself).
 # The matching CI job `js-e2e` is required on pull requests (via the aggregate `required` check).
 cd js && npm run build && npm run test:e2e
 # Generate TypeScript interfaces from a schema

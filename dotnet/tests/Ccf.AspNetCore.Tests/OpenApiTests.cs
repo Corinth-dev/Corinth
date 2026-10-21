@@ -24,7 +24,11 @@ public class OpenApiTests
         var document = await DocumentAsync(host);
 
         Assert.Equal("CCF sample API", document.GetProperty("info").GetProperty("title").GetString());
-        Assert.Contains("application/vnd.ccf; features=d", document.GetProperty("info").GetProperty("description").GetString());
+        var description = document.GetProperty("info").GetProperty("description").GetString()!;
+        Assert.Contains("Try it with", description);                 // the sample's own text is kept
+        Assert.Contains("**CCF.**", description);                    // AddCcf() appends the opt-in note
+        Assert.Contains("application/vnd.ccf; features=d", description);
+        Assert.Contains("/ccf/schemas/{id}", description);
     }
 
     [Theory]

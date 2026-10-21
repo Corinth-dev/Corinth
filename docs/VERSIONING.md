@@ -10,7 +10,7 @@
 
 ## Packages
 
-All packages follow **SemVer 2.0**, and `SKM.Ccf.Core`, `SKM.Ccf.AspNetCore`, `SKM.Ccf.Client` (NuGet) and `@skm/ccf-client`, `@skm/ccf-typegen` (npm) are released together with one version number.
+All packages follow **SemVer 2.0**, and `SKM.Ccf.Core`, `SKM.Ccf.AspNetCore`, `SKM.Ccf.Client`, `SKM.Ccf.Scalar` (NuGet) and `@skm/ccf-client`, `@skm/ccf-typegen` (npm) are released together with one version number.
 
 - `0.x`: the public API may still change in minor releases; each release notes the changes. Wire compatibility is not affected: any `0.x` reader and writer interoperate on format version 1, feature `d`.
 - From `1.0.0`: breaking changes to the public API only in a major release; new features and options in minor releases; fixes in patch releases. `EnablePackageValidation` (NuGet) guards against accidental breaks once a baseline version exists.
