@@ -1,10 +1,8 @@
-# CCF — Columnar Compact Format
+# Corinth
 
 **Smaller, faster API responses for ASP.NET Core, without changing your API.**
 
-CCF is an opt-in binary response format for JSON APIs. A client that asks for it (`Accept: application/vnd.ccf; features=d`) gets the same data as the JSON response, laid out in columns, with no field names on the wire. Every other client keeps getting exactly the JSON it gets today. Anything CCF cannot encode falls back to JSON automatically.
-
-> CCF here is the *Columnar Compact Format* for API responses. It is not related to Microsoft's Confidential Consortium Framework, which shares the acronym.
+Corinth adds CCF, the *Corinthian Columnar Format*, to your API: an opt-in binary response format for JSON APIs. Like the columns of a Corinthian colonnade, the data stands in neat columns. A client that asks for it (`Accept: application/vnd.ccf; features=d`) gets the same data as the JSON response, laid out in columns, with no field names on the wire. Every other client keeps getting exactly the JSON it gets today. Anything CCF cannot encode falls back to JSON automatically.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) ![.NET 10](https://img.shields.io/badge/.NET-10-512bd4) ![Node 20+](https://img.shields.io/badge/node-20%2B-339933) ![status: 0.1 preview](https://img.shields.io/badge/status-0.1%20preview-orange)
 
@@ -33,7 +31,7 @@ The wire format is specified in [`docs/SPEC.md`](docs/SPEC.md) and pinned by gol
 
 ## Quick start
 
-**Server** (`dotnet add package SKM.Ccf.AspNetCore`)
+**Server** (`dotnet add package Corinth.AspNetCore`)
 
 ```csharp
 builder.Services.AddControllers();
@@ -49,22 +47,22 @@ app.MapGet("/products", (Db db) => CcfResults.Ok(db.Products)); // minimal APIs 
 curl -H 'Accept: application/vnd.ccf; features=d' http://localhost:5000/products -o products.ccf
 ```
 
-**.NET client** (`dotnet add package SKM.Ccf.Client`)
+**.NET client** (`dotnet add package Corinth.Client`)
 
 ```csharp
 var products = await http.GetFromCcfAsync<List<Product>>("/products");
 ```
 
-**Browser / Node 20+** (`npm install @skm/ccf-client`)
+**Browser / Node 20+** (`npm install @corinth/client`)
 
 ```ts
-import { createCcfClient, IndexedDbSchemaCache } from "@skm/ccf-client";
+import { createCcfClient, IndexedDbSchemaCache } from "@corinth/client";
 
 const ccf = createCcfClient({ baseUrl: "https://api.example.com", schemaCache: new IndexedDbSchemaCache() });
 const products = await ccf.get<Product[]>("/products"); // CCF when offered, JSON otherwise
 ```
 
-Generate the TypeScript types from a schema with `npx @skm/ccf-typegen https://api.example.com/ccf/schemas/<id>`.
+Generate the TypeScript types from a schema with `npx @corinth/typegen https://api.example.com/ccf/schemas/<id>`.
 
 Read the [opt-in guide](docs/GUIDE.md) before rolling out: choosing endpoints, pre-registering schemas behind a load balancer, caches and `Vary: Accept`, enabling HTTP compression for CCF, and the configuration reference.
 
@@ -93,12 +91,12 @@ Read the [opt-in guide](docs/GUIDE.md) before rolling out: choosing endpoints, p
 
 | Package | What it is |
 | --- | --- |
-| `SKM.Ccf.Core` | Schema, encoder, decoder. BCL only. |
-| `SKM.Ccf.AspNetCore` | Output formatter, negotiation, schema endpoint, `CcfResults.Ok`, metrics. |
-| `SKM.Ccf.Client` | `HttpClient` helper with schema cache and JSON fallback. |
-| `SKM.Ccf.Scalar` | Development tooling: CCF in the OpenAPI document and a decode toggle in the Scalar UI. |
-| `@skm/ccf-client` | Browser and Node 20+ decoder and client. |
-| `@skm/ccf-typegen` | TypeScript interfaces from a CCF schema. |
+| `Corinth.Core` | Schema, encoder, decoder. BCL only. |
+| `Corinth.AspNetCore` | Output formatter, negotiation, schema endpoint, `CcfResults.Ok`, metrics. |
+| `Corinth.Client` | `HttpClient` helper with schema cache and JSON fallback. |
+| `Corinth.Scalar` | Development tooling: CCF in the OpenAPI document and a decode toggle in the Scalar UI. |
+| `@corinth/client` | Browser and Node 20+ decoder and client. |
+| `@corinth/typegen` | TypeScript interfaces from a CCF schema. |
 
 All packages share one version and follow [SemVer](docs/VERSIONING.md). They are `0.x`: the public API may still change; the wire format (version 1) will not.
 
@@ -118,7 +116,7 @@ All packages share one version and follow [SemVer](docs/VERSIONING.md). They are
 ```bash
 cd dotnet && dotnet build && dotnet test      # .NET 10 SDK
 cd js && npm install && npm test              # Node 20+
-cd dotnet && dotnet run --project samples/Ccf.SampleApi   # sample API, Scalar UI at /scalar/v1
+cd dotnet && dotnet run --project samples/Corinth.SampleApi   # sample API, Scalar UI at /scalar/v1
 ```
 
 ## License

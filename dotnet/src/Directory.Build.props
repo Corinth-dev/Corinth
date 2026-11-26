@@ -4,10 +4,10 @@
   <PropertyGroup>
     <VersionPrefix>0.1.0</VersionPrefix>
     <Authors>SamuraiKenshin</Authors>
-    <PackageProjectUrl>https://github.com/SamuraiKenshin/CCF</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/SamuraiKenshin/CCF</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/SamuraiKenshin/Corinth</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/SamuraiKenshin/Corinth</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageTags>columnar-compact-format;columnar;binary;serialization;aspnetcore;content-negotiation;api;json-alternative;typescript</PackageTags>
+    <PackageTags>corinth;ccf;corinthian-columnar-format;columnar;binary;serialization;aspnetcore;content-negotiation;api;json-alternative;typescript</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <EnablePackageValidation>true</EnablePackageValidation>

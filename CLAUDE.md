@@ -1,10 +1,10 @@
-# CCF — Columnar Compact Format
+# Corinth — CCF, the Corinthian Columnar Format
 
-You are building CCF: a compact binary response format for ASP.NET Core APIs, with a .NET server library, a .NET client and a TypeScript client. JSON stays the default; clients opt in with `Accept: application/vnd.ccf; features=d`.
+You are building Corinth (packages `Corinth.*` on NuGet, `@corinth/*` on npm), which implements CCF: a compact binary response format for ASP.NET Core APIs, with a .NET server library, a .NET client and a TypeScript client. JSON stays the default; clients opt in with `Accept: application/vnd.ccf; features=d`.
 
 ## Read first, in this order
 
-1. `docs/SPEC.md` — the wire format. **Normative. Do not change it.**
+1. `docs/SPEC.md` — the wire format. **Normative. Do not change it.** (The only change so far, the wording of the CCF expansion in §1, was made by the owner; DECISIONS #16.)
 2. `test-vectors/README.md` — the conformance suite and how tests must use it.
 3. `docs/ARCHITECTURE.md` — packages, ASP.NET Core integration, clients, fallback behaviour.
 4. `docs/PLAN.md` — phases and checkboxes. This is your work queue.
@@ -27,7 +27,7 @@ You are building CCF: a compact binary response format for ASP.NET Core APIs, wi
 
 .NET
 - Target `net10.0` (net8.0 was dropped in phase 5: end of support in November 2026), C# latest, `<Nullable>enable</Nullable>`, `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`.
-- `Ccf.Core` depends on the BCL only. No third-party runtime dependencies in any package without asking.
+- `Corinth.Core` depends on the BCL only. No third-party runtime dependencies in any package without asking.
 - Tests: xUnit. Benchmarks: BenchmarkDotNet. Fuzzing: SharpFuzz or a mutation test.
 - Hot paths (encoder, decoder): `Span<byte>`, `ReadOnlySpan<byte>`, `IBufferWriter<byte>`, `ArrayPool<byte>`; no LINQ, no boxing, no reflection per value (compile accessors once per type).
 - Every decode failure is `CcfFormatException` with a `CcfErrorCode` from SPEC §11; nothing else may escape the decoder. Encode failures are `CcfEncodeException`.
@@ -43,8 +43,8 @@ TypeScript
 ```bash
 # .NET
 cd dotnet && dotnet build && dotnet test
-dotnet run -c Release --project benchmarks/Ccf.Benchmarks -- --filter "*"   # BenchmarkDotNet (about 15 min)
-cd dotnet && dotnet run -c Release --project benchmarks/Ccf.Benchmarks -- export   # datasets + size table into bench-data/
+dotnet run -c Release --project benchmarks/Corinth.Benchmarks -- --filter "*"   # BenchmarkDotNet (about 15 min)
+cd dotnet && dotnet run -c Release --project benchmarks/Corinth.Benchmarks -- export   # datasets + size table into bench-data/
 cd js && npm run build && npm run bench && npm run bench:browser   # JS decode benchmarks (Node, Chromium)
 
 # TypeScript
@@ -52,8 +52,8 @@ cd js && npm install && npm test
 npm run build
 
 # Run the sample API (JSON by default; try `curl -H 'Accept: application/vnd.ccf; features=d' http://localhost:5000/products`)
-cd dotnet && dotnet run --project samples/Ccf.SampleApi
-# The sample also serves its OpenAPI document at /openapi/v1.json and the Scalar UI at /scalar/v1 (CCF-capable operations list application/vnd.ccf; both come from the SKM.Ccf.Scalar package in src/Ccf.Scalar, the CCF viewer is mapped in Development only).
+cd dotnet && dotnet run --project samples/Corinth.SampleApi
+# The sample also serves its OpenAPI document at /openapi/v1.json and the Scalar UI at /scalar/v1 (CCF-capable operations list application/vnd.ccf; both come from the Corinth.Scalar package in src/Corinth.Scalar, the CCF viewer is mapped in Development only).
 # To read a CCF response in Scalar, send the request with `Accept: application/vnd.ccf` and switch the "CCF decode" toggle (bottom right, off by default) ON before sending: a script (/ccf/scalar-viewer.js) posts the payload to POST /ccf/decode and Scalar shows the decoded JSON (x-ccf-* response headers show size and schema id). OFF shows the raw binary response.
 
 # TypeScript: real Chromium (needs `npx playwright-core install chromium` once)

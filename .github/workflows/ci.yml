@@ -30,10 +30,10 @@ jobs:
       # The three NuGet packages must pack cleanly (metadata, README, XML docs, package validation).
       - name: Pack
         run: |
-          dotnet pack src/Ccf.Core -c Release --no-build -o artifacts
-          dotnet pack src/Ccf.AspNetCore -c Release --no-build -o artifacts
-          dotnet pack src/Ccf.Client -c Release --no-build -o artifacts
-          dotnet pack src/Ccf.Scalar -c Release --no-build -o artifacts
+          dotnet pack src/Corinth.Core -c Release --no-build -o artifacts
+          dotnet pack src/Corinth.AspNetCore -c Release --no-build -o artifacts
+          dotnet pack src/Corinth.Client -c Release --no-build -o artifacts
+          dotnet pack src/Corinth.Scalar -c Release --no-build -o artifacts
       - uses: actions/upload-artifact@v4
         with:
           name: nuget-packages
@@ -120,7 +120,7 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: js/package-lock.json
-      - run: dotnet build -c Release samples/Ccf.SampleApi -f net10.0
+      - run: dotnet build -c Release samples/Corinth.SampleApi -f net10.0
         working-directory: dotnet
       - run: npm ci
         working-directory: js

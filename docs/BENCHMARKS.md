@@ -11,7 +11,7 @@ Measured 2026-10-20 on a 4-vCPU Intel Xeon 2.10 GHz Linux VM (shared cloud conta
 | unique-strings-5k | 5,000 | name, email and note almost always unique (worst case for dictionary mode) |
 | orders-5k | 5,000 | nullable customer object, 0–8 order lines (object list), optional tag list (scalar list) |
 
-Generated deterministically by `dotnet/benchmarks/Ccf.Benchmarks/Datasets.cs`. The `export` command writes every dataset in every encoding (JSON, gzip, brotli, CCF plain, CCF dictionary) to `bench-data/` (git-ignored) for the JavaScript runs.
+Generated deterministically by `dotnet/benchmarks/Corinth.Benchmarks/Datasets.cs`. The `export` command writes every dataset in every encoding (JSON, gzip, brotli, CCF plain, CCF dictionary) to `bench-data/` (git-ignored) for the JavaScript runs.
 
 ## Method
 

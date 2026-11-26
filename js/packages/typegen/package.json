@@ -1,11 +1,11 @@
 {
-  "name": "@skm/ccf-typegen",
+  "name": "@corinth/typegen",
   "version": "0.1.0",
-  "description": "Generates TypeScript interfaces from CCF schemas",
+  "description": "Corinth: generates TypeScript interfaces from CCF (Corinthian Columnar Format) schemas",
   "type": "module",
   "license": "MIT",
   "bin": {
-    "ccf-typegen": "./dist/cli.js"
+    "corinth-typegen": "./dist/cli.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -23,23 +23,24 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@skm/ccf-client": "0.1.0"
+    "@corinth/client": "0.1.0"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.test.json --noEmit",
     "test": "tsc -p tsconfig.test.json --noEmit && vitest run",
-    "test:conformance": "echo 'ccf-typegen: no conformance tests'"
+    "test:conformance": "echo 'corinth-typegen: no conformance tests'"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/SamuraiKenshin/CCF.git",
+    "url": "git+https://github.com/SamuraiKenshin/Corinth.git",
     "directory": "js/packages/typegen"
   },
-  "homepage": "https://github.com/SamuraiKenshin/CCF#readme",
+  "homepage": "https://github.com/SamuraiKenshin/Corinth#readme",
   "keywords": [
     "ccf",
-    "columnar-compact-format",
+    "corinth",
+    "corinthian-columnar-format",
     "columnar",
     "binary",
     "api",

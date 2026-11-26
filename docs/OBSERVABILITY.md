@@ -1,6 +1,6 @@
 # Observability: dashboards and queries for the `Ccf` meter
 
-`Ccf.AspNetCore` publishes one `System.Diagnostics.Metrics` meter, `Ccf`, and logs under the category `Ccf`.
+`Corinth.AspNetCore` publishes one `System.Diagnostics.Metrics` meter, `Ccf`, and logs under the category `Ccf`.
 
 ## Instruments
 
@@ -38,7 +38,7 @@ What is **not** recorded: the size the JSON response would have had (no JSON-siz
 
 - `ccf_encode_failures_total` rate above 0 for 10 minutes: a data change (a decimal with extra digits, a new null) is forcing JSON on a CCF endpoint.
 - the fallback share (second panel above) greater than, say, 1%.
-- Client side (your own telemetry): any spike in the .NET client warning "repeating the request as JSON" or in `@skm/ccf-client`'s `log` callback.
+- Client side (your own telemetry): any spike in the .NET client warning "repeating the request as JSON" or in `@corinth/client`'s `log` callback.
 
 ## Limits of the numbers
 

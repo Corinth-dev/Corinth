@@ -5,7 +5,7 @@ CCF is an optimisation, never a dependency. JSON remains the default; a client g
 ## 1. Before you start
 
 - Measure first. CCF pays off on tables whose columns repeat, are numeric or are small (`docs/BENCHMARKS.md`: dictionary-mode decode 2.3x–6.1x faster than System.Text.Json source-gen across the four benchmark sets, and 11%–13% of the raw JSON size on repetitive data). It does **not** help payloads dominated by long, mostly unique strings (`docs/ARCHITECTURE.md` §9.2): keep those endpoints on JSON.
-- Packages (MIT license): NuGet `SKM.Ccf.AspNetCore` on the server (it brings `SKM.Ccf.Core`), `SKM.Ccf.Client` for .NET callers, npm `@skm/ccf-client` for browsers and Node 20+ (and `@skm/ccf-typegen` for generated types). The assemblies and namespaces are still `Ccf.*`. Everything targets `net10.0`.
+- Packages (MIT license): NuGet `Corinth.AspNetCore` on the server (it brings `Corinth.Core`), `Corinth.Client` for .NET callers, npm `@corinth/client` for browsers and Node 20+ (and `@corinth/typegen` for generated types). Namespaces match the package names (`using Corinth.AspNetCore;`; the core types are in `Corinth`). Everything targets `net10.0`.
 
 ## 2. Enable it
 
@@ -90,12 +90,12 @@ In code, `Limits` is an init-only object: `o.Limits = new CcfLimits { MaxRows = 
 ## 8. Clients
 
 - **.NET:** `await http.GetFromCcfAsync<List<Product>>("/products")`, or keep a `CcfClient` (see its README). Failures of CCF itself (corrupt payload, schema unavailable) are retried once as JSON for GET/HEAD and requests you mark idempotent.
-- **Browser / Node:** `createCcfClient({ baseUrl })`, with `IndexedDbSchemaCache` to persist schemas across page loads. `ccf-typegen` generates TypeScript types from a schema. int64 values beyond 2^53 throw `RangeError` unless you ask for `int64: "bigint"`.
+- **Browser / Node:** `createCcfClient({ baseUrl })`, with `IndexedDbSchemaCache` to persist schemas across page loads. `corinth-typegen` generates TypeScript types from a schema. int64 values beyond 2^53 throw `RangeError` unless you ask for `int64: "bigint"`.
 - Anything else keeps getting JSON.
 
 ## 9. Seeing CCF in OpenAPI and Scalar (optional, development)
 
-`SKM.Ccf.Scalar` makes CCF visible in your OpenAPI document and in the Scalar API reference:
+`Corinth.Scalar` makes CCF visible in your OpenAPI document and in the Scalar API reference:
 
 ```csharp
 builder.Services.AddOpenApi(o => o.AddCcf());

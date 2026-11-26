@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Corinth.Client</PackageId>
+    <RootNamespace>Corinth.Client</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Description>Corinth. HttpClient helper for CCF (Corinthian Columnar Format): asks for CCF, verifies and caches schemas, decodes into your types and falls back to JSON.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Corinth.Core\Corinth.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.13" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Corinth.Client.Tests" />
+  </ItemGroup>
+</Project>

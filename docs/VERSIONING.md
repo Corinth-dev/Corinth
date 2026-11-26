@@ -10,10 +10,10 @@
 
 ## Packages
 
-All packages follow **SemVer 2.0**, and `SKM.Ccf.Core`, `SKM.Ccf.AspNetCore`, `SKM.Ccf.Client`, `SKM.Ccf.Scalar` (NuGet) and `@skm/ccf-client`, `@skm/ccf-typegen` (npm) are released together with one version number.
+All packages follow **SemVer 2.0**, and `Corinth.Core`, `Corinth.AspNetCore`, `Corinth.Client`, `Corinth.Scalar` (NuGet) and `@corinth/client`, `@corinth/typegen` (npm) are released together with one version number.
 
 - `0.x`: the public API may still change in minor releases; each release notes the changes. Wire compatibility is not affected: any `0.x` reader and writer interoperate on format version 1, feature `d`.
 - From `1.0.0`: breaking changes to the public API only in a major release; new features and options in minor releases; fixes in patch releases. `EnablePackageValidation` (NuGet) guards against accidental breaks once a baseline version exists.
 - A package supports every format feature it lists in its README; a reader never needs to be newer than the server unless the server uses a feature the client advertised, which the client controls.
 - Supported runtimes: .NET 10 (`net10.0`; net8.0 was dropped before the first release because it reaches end of support in November 2026); Node 20+ and current browsers. Dropping a runtime is a minor release in `0.x` and a major release afterwards.
-- `@skm/ccf-typegen` depends on the exact same `@skm/ccf-client` version.
+- `@corinth/typegen` depends on the exact same `@corinth/client` version.

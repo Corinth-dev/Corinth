@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync } from "node:fs";
-import { CcfSchemaError, CcfSchemaFetchError, parseSchema, verifySchema } from "@skm/ccf-client";
+import { CcfSchemaError, CcfSchemaFetchError, parseSchema, verifySchema } from "@corinth/client";
 import { type TypegenOptions, generateTypes } from "./generate.js";
 
 /** Where the CLI reads and writes; replaceable in tests. */
@@ -12,7 +12,7 @@ export interface CliIo {
   fetchText(url: string): Promise<string>;
 }
 
-export const USAGE = `Usage: ccf-typegen <schema> [options]
+export const USAGE = `Usage: corinth-typegen <schema> [options]
 
   <schema>              a schema JSON file, "-" for stdin, or an http(s) URL such as
                         https://api.example.com/ccf/schemas/c33a3ed0
@@ -64,12 +64,12 @@ export async function main(argv: readonly string[], io: CliIo = nodeIo): Promise
       }
     } catch (e) {
       if (!(e instanceof UsageError)) throw e;
-      io.stderr(`ccf-typegen: ${e.message}\n\n${USAGE}`);
+      io.stderr(`corinth-typegen: ${e.message}\n\n${USAGE}`);
       return 2;
     }
   }
   if (input === undefined) {
-    io.stderr(`ccf-typegen: no schema given\n\n${USAGE}`);
+    io.stderr(`corinth-typegen: no schema given\n\n${USAGE}`);
     return 2;
   }
 
@@ -84,7 +84,7 @@ export async function main(argv: readonly string[], io: CliIo = nodeIo): Promise
     return 0;
   } catch (e) {
     const known = e instanceof CcfSchemaError || e instanceof CcfSchemaFetchError;
-    io.stderr(`ccf-typegen: ${known ? "invalid schema: " : ""}${(e as Error).message}\n`);
+    io.stderr(`corinth-typegen: ${known ? "invalid schema: " : ""}${(e as Error).message}\n`);
     return 1;
   }
 }

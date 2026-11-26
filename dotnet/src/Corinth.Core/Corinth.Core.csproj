@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Corinth.Core</PackageId>
+    <RootNamespace>Corinth</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Description>Corinth. CCF (Corinthian Columnar Format): schema, encoder and decoder for a compact binary, column-oriented response format. No dependencies beyond the .NET base class library.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Corinth.Core.Tests" />
+    <InternalsVisibleTo Include="Corinth.Benchmarks" />
+  </ItemGroup>
+</Project>
