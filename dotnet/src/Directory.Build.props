@@ -4,8 +4,8 @@
   <PropertyGroup>
     <VersionPrefix>0.1.0</VersionPrefix>
     <Authors>SamuraiKenshin</Authors>
-    <PackageProjectUrl>https://github.com/SamuraiKenshin/Corinth</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/SamuraiKenshin/Corinth</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/Corinth-dev/Corinth</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Corinth-dev/Corinth</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>corinth;ccf;corinthian-columnar-format;columnar;binary;serialization;aspnetcore;content-negotiation;api;json-alternative;typescript</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>

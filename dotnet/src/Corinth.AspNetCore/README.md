@@ -1,6 +1,6 @@
 # Corinth.AspNetCore
 
-Serves [CCF (Corinthian Columnar Format)](https://github.com/SamuraiKenshin/Corinth) from ASP.NET Core. JSON stays the default; a client opts in with `Accept: application/vnd.ccf; features=d`. Anything CCF cannot serve falls back to JSON.
+Serves [CCF (Corinthian Columnar Format)](https://github.com/Corinth-dev/Corinth) from ASP.NET Core. JSON stays the default; a client opts in with `Accept: application/vnd.ccf; features=d`. Anything CCF cannot serve falls back to JSON.
 
 ```csharp
 builder.Services.AddControllers();
