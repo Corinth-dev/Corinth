@@ -1,6 +1,8 @@
-# Ccf.Client (.NET)
+# SKM.Ccf.Client (.NET)
 
-An `HttpClient` helper that asks for CCF (`Accept: application/vnd.ccf; features=d`), decodes the response into your type, and falls back to JSON whenever anything goes wrong. It depends on `SKM.Ccf.Core`, `System.Net.Http.Json` and `Microsoft.Extensions.Logging.Abstractions`.
+An `HttpClient` helper that asks for CCF, the Columnar Compact Format (`Accept: application/vnd.ccf; features=d`), decodes the response into your type, and falls back to JSON whenever anything goes wrong. It depends on `SKM.Ccf.Core`, `System.Net.Http.Json` and `Microsoft.Extensions.Logging.Abstractions`.
+
+> CCF here is the *Columnar Compact Format* for API responses. It is not related to Microsoft's Confidential Consortium Framework, which shares the acronym.
 
 ```csharp
 var order = await http.GetFromCcfAsync<Order>("/orders/7");          // extension method

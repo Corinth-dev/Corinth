@@ -2,6 +2,8 @@
 
 `ccf-typegen` turns a CCF schema (a file or a URL) into TypeScript interfaces for use with `@skm/ccf-client`.
 
+> CCF here is the *Columnar Compact Format* for API responses. It is not related to Microsoft's Confidential Consortium Framework, which shares the acronym.
+
 ```bash
 npx @skm/ccf-typegen schema-Product.json -o product.ts   # installs the `ccf-typegen` command
 ```

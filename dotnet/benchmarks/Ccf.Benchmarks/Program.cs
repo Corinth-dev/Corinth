@@ -57,7 +57,9 @@ internal static class Exporter
             d.Name, d.Rows.Count, d.Schema.IdHex, d.Json.Length, d.JsonGzip.Length, d.JsonBrotli.Length,
             Compress.Gzip(d.Json, System.IO.Compression.CompressionLevel.Fastest).Length,
             Compress.Brotli(d.Json, System.IO.Compression.CompressionLevel.Fastest).Length,
-            Brotli11(d.Json), d.CcfPlain.Length, d.CcfDict.Length));
+            Brotli11(d.Json), d.CcfPlain.Length, d.CcfDict.Length,
+            Compress.Gzip(d.CcfDict, System.IO.Compression.CompressionLevel.Optimal).Length,
+            Compress.Brotli(d.CcfDict, System.IO.Compression.CompressionLevel.Optimal).Length));
     }
 
     private static int Brotli11(byte[] data)
@@ -76,9 +78,20 @@ internal static class Exporter
             sb.AppendLine($"| {s.Name} | {s.Rows:N0} | {s.Json:N0} | {s.Gzip:N0} | {s.GzipFastest:N0} | {s.Brotli:N0} | {s.BrotliFastest:N0} | {s.Brotli11:N0} | {s.CcfPlain:N0} | {s.CcfDict:N0} | {(double)s.CcfDict / s.Gzip:P0} | {(double)s.CcfDict / s.Json:P0} |");
         }
 
+        sb.AppendLine();
+        sb.AppendLine("With HTTP compression applied to both (Content-Encoding; the CCF format itself is never compressed):");
+        sb.AppendLine();
+        sb.AppendLine("| Dataset | JSON gzip -6 | CCF dict gzip -6 | ratio | JSON brotli 4 | CCF dict brotli 4 | ratio |");
+        sb.AppendLine("| --- | ---: | ---: | ---: | ---: | ---: | ---: |");
+        foreach (var s in sizes)
+        {
+            sb.AppendLine($"| {s.Name} | {s.Gzip:N0} | {s.CcfDictGzip:N0} | {(double)s.CcfDictGzip / s.Gzip:P0} | {s.Brotli:N0} | {s.CcfDictBrotli:N0} | {(double)s.CcfDictBrotli / s.Brotli:P0} |");
+        }
+
         return sb.ToString();
     }
 }
 
 internal sealed record Sizes(
-    string Name, int Rows, string SchemaId, int Json, int Gzip, int Brotli, int GzipFastest, int BrotliFastest, int Brotli11, int CcfPlain, int CcfDict);
+    string Name, int Rows, string SchemaId, int Json, int Gzip, int Brotli, int GzipFastest, int BrotliFastest, int Brotli11, int CcfPlain, int CcfDict,
+    int CcfDictGzip, int CcfDictBrotli);

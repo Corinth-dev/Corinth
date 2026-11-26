@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Generates TypeScript interfaces from CCF schemas",
   "type": "module",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "bin": {
     "ccf-typegen": "./dist/cli.js"
   },
@@ -39,6 +39,7 @@
   "homepage": "https://github.com/SamuraiKenshin/CCF#readme",
   "keywords": [
     "ccf",
+    "columnar-compact-format",
     "columnar",
     "binary",
     "api",

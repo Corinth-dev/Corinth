@@ -1,6 +1,8 @@
-# Ccf.Core
+# SKM.Ccf.Core
 
 The core of CCF (Columnar Compact Format), a compact binary, column-oriented format for API responses: the schema model, the encoder and the decoder. It depends on the .NET base class library only.
+
+> CCF here is the *Columnar Compact Format* for API responses. It is not related to Microsoft's Confidential Consortium Framework, which shares the acronym.
 
 Most applications use [`Ccf.AspNetCore`](../Ccf.AspNetCore/README.md) on the server and [`Ccf.Client`](../Ccf.Client/README.md) on the client. Use `Ccf.Core` directly to encode or decode CCF yourself:
 

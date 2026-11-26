@@ -1,6 +1,8 @@
-# Ccf.AspNetCore
+# SKM.Ccf.AspNetCore
 
-Serves [CCF](https://github.com/SamuraiKenshin/CCF) from ASP.NET Core. JSON stays the default; a client opts in with `Accept: application/vnd.ccf; features=d`. Anything CCF cannot serve falls back to JSON.
+Serves [CCF (Columnar Compact Format)](https://github.com/SamuraiKenshin/CCF) from ASP.NET Core. JSON stays the default; a client opts in with `Accept: application/vnd.ccf; features=d`. Anything CCF cannot serve falls back to JSON.
+
+> CCF here is the *Columnar Compact Format* for API responses. It is not related to Microsoft's Confidential Consortium Framework, which shares the acronym.
 
 ```csharp
 builder.Services.AddControllers();

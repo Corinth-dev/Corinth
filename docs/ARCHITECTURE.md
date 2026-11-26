@@ -37,7 +37,7 @@ flowchart LR
 | --- | --- | --- |
 | `Ccf.Core` (.NET) | Schema model, canonicalizer, hasher, schema builder, encoder, decoder, limits, errors | Nothing outside the BCL |
 | `Ccf.AspNetCore` (.NET) | `AddCcf`, output formatter, `CcfResults`, schema endpoint, options | `Ccf.Core`, ASP.NET Core |
-| `Ccf.Scalar` (.NET, development tooling) | `AddCcf()` for the OpenAPI document (an `application/vnd.ccf` response per CCF-capable operation), `MapCcfViewer()` (POST `/ccf/decode` and the Scalar script, Development only), `WithCcfViewer()` for the Scalar options | `Ccf.AspNetCore`, `Microsoft.AspNetCore.OpenApi`, `Scalar.AspNetCore` (2.18.x) |
+| `Ccf.Scalar` (.NET, development tooling) | `AddCcf()` for the OpenAPI document (an `application/vnd.ccf` response per CCF-capable operation), `MapCcfViewer()` (POST `/ccf/decode` and the Scalar script, Development only), `WithCcfViewer()` for the Scalar options | `Ccf.AspNetCore`, `Microsoft.AspNetCore.OpenApi`, `Scalar.AspNetCore` (2.x, from 2.18.2) |
 | `Ccf.Client` (.NET) | `HttpClient` extensions, schema cache, JSON fallback | `Ccf.Core`, `System.Net.Http.Json`, `Microsoft.Extensions.Logging.Abstractions` |
 | `@skm/ccf-client` (npm) | Decoder, schema cache, `fetch` wrapper, TS type generator CLI | None at runtime |
 
@@ -299,7 +299,7 @@ Consequences for rollout: opt in per endpoint, prefer endpoints with repetitive 
 ## 10. Operating and releasing
 
 - Enabling CCF on an API: `docs/GUIDE.md`. Metrics, dashboards and alerts: `docs/OBSERVABILITY.md`. Versioning and compatibility rules: `docs/VERSIONING.md`.
-- Packages (version 0.1.0, UNLICENSED, private feed, prepared but not published by this repository): NuGet `SKM.Ccf.Core`, `SKM.Ccf.AspNetCore`, `SKM.Ccf.Client`, `SKM.Ccf.Scalar` (assemblies and namespaces stay `Ccf.*`); npm `@skm/ccf-client` and `@skm/ccf-typegen` (the CLI command is `ccf-typegen`). The npm scope is lower case because npm rejects capitals in new package names. Symbol packages (`.snupkg`) carry Source Link; CI sets `ContinuousIntegrationBuild`.
+- Packages (version 0.1.0, MIT license, prepared but not published by this repository): NuGet `SKM.Ccf.Core`, `SKM.Ccf.AspNetCore`, `SKM.Ccf.Client`, `SKM.Ccf.Scalar` (assemblies and namespaces stay `Ccf.*`); npm `@skm/ccf-client` and `@skm/ccf-typegen` (the CLI command is `ccf-typegen`). The npm scope is lower case because npm rejects capitals in new package names. Symbol packages (`.snupkg`) carry Source Link; CI sets `ContinuousIntegrationBuild`.
 
 ## 11. Future
 

@@ -11,8 +11,8 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.13" />
-    <!-- Tested range: the script relies on Scalar's customFetch and JavaScript-configuration options. -->
-    <PackageReference Include="Scalar.AspNetCore" Version="[2.18.2,2.19.0)" />
+    <!-- Scalar 2.x: tested with 2.18.2 (the floor, what CI restores) and 2.21.0. The script relies on Scalar's customFetch and JavaScript-configuration options; a Scalar 3.0 needs a new release of this package. -->
+    <PackageReference Include="Scalar.AspNetCore" Version="[2.18.2,3.0.0)" />
   </ItemGroup>
   <ItemGroup>
     <None Include="buildTransitive\SKM.Ccf.Scalar.targets" Pack="true" PackagePath="buildTransitive\" />

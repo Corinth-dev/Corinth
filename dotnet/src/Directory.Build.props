@@ -7,9 +7,9 @@
     <PackageProjectUrl>https://github.com/SamuraiKenshin/CCF</PackageProjectUrl>
     <RepositoryUrl>https://github.com/SamuraiKenshin/CCF</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageTags>ccf;columnar;binary;serialization;aspnetcore;api;json-alternative</PackageTags>
+    <PackageTags>columnar-compact-format;columnar;binary;serialization;aspnetcore;content-negotiation;api;json-alternative;typescript</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <EnablePackageValidation>true</EnablePackageValidation>
     <!-- Source Link ships with the .NET 8+ SDK: no package needed. ContinuousIntegrationBuild is set by CI. -->
     <PublishRepositoryUrl>true</PublishRepositoryUrl>

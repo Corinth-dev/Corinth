@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "CCF (Columnar Compact Format) client for browsers and Node 20+",
   "type": "module",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "sideEffects": false,
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -36,6 +36,7 @@
   "homepage": "https://github.com/SamuraiKenshin/CCF#readme",
   "keywords": [
     "ccf",
+    "columnar-compact-format",
     "columnar",
     "binary",
     "api",

@@ -2,6 +2,8 @@
 
 CCF (Columnar Compact Format) client for browsers and Node 20+. Zero runtime dependencies, ES modules, strict TypeScript.
 
+> CCF here is the *Columnar Compact Format* for API responses. It is not related to Microsoft's Confidential Consortium Framework, which shares the acronym.
+
 ```ts
 import { createCcfClient, IndexedDbSchemaCache } from "@skm/ccf-client";
 

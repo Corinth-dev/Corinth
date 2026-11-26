@@ -1,6 +1,8 @@
 # SKM.Ccf.Scalar
 
-Development tooling that makes [CCF](https://github.com/SamuraiKenshin/CCF) visible in the OpenAPI document and in the [Scalar](https://scalar.com) API reference, so nobody has to write this per project.
+Development tooling that makes [CCF (Columnar Compact Format)](https://github.com/SamuraiKenshin/CCF) visible in the OpenAPI document and in the [Scalar](https://scalar.com) API reference, so nobody has to write this per project.
+
+> CCF here is the *Columnar Compact Format* for API responses. It is not related to Microsoft's Confidential Consortium Framework, which shares the acronym.
 
 ```csharp
 builder.Services.AddCcf();
@@ -26,4 +28,4 @@ app.MapScalarApiReference(o => o.WithCcfViewer());       // adds the "CCF decode
 
 ## Compatibility
 
-Depends on `Scalar.AspNetCore` 2.18.x (a tested range: the script relies on Scalar's `customFetch` and JavaScript-configuration options) and `Microsoft.AspNetCore.OpenApi`. Requires `AddCcf()` from `SKM.Ccf.AspNetCore`. You do not need to reference `Microsoft.AspNetCore.OpenApi` yourself (the package carries the build setting its source generator needs). A browser test in the repository's CI drives the toggle in the real Scalar UI.
+Depends on `Scalar.AspNetCore` 2.x from 2.18.2 (tested with 2.18.2 and 2.21.0; the script relies on Scalar's `customFetch` and JavaScript-configuration options, so a Scalar 3.0 needs a new release of this package) and `Microsoft.AspNetCore.OpenApi`. Requires `AddCcf()` from `SKM.Ccf.AspNetCore`. You do not need to reference `Microsoft.AspNetCore.OpenApi` yourself (the package carries the build setting its source generator needs). A browser test in the repository's CI drives the toggle in the real Scalar UI.
