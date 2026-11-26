@@ -1,5 +1,5 @@
 /**
- * @skm/ccf-client: decoder and client for CCF (Columnar Compact Format) payloads. Zero runtime dependencies; runs in
+ * @corinth/client: decoder and client for CCF (Corinthian Columnar Format) payloads. Zero runtime dependencies; runs in
  * browsers and Node 20+.
  */
 export { CcfFormatError, CcfSchemaError, CcfSchemaFetchError, CcfHttpError } from "./errors.js";

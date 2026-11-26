@@ -5,7 +5,7 @@ CCF is an optimisation, never a dependency. JSON remains the default; a client g
 ## 1. Before you start
 
 - Measure first. CCF pays off on tables whose columns repeat, are numeric or are small (`docs/BENCHMARKS.md`: dictionary-mode decode 2.3x–6.1x faster than System.Text.Json source-gen across the four benchmark sets, and 11%–13% of the raw JSON size on repetitive data). It does **not** help payloads dominated by long, mostly unique strings (`docs/ARCHITECTURE.md` §9.2): keep those endpoints on JSON.
-- Packages (private feed): NuGet `SKM.Ccf.AspNetCore` on the server (it brings `SKM.Ccf.Core`), `SKM.Ccf.Client` for .NET callers, npm `@skm/ccf-client` for browsers and Node 20+ (and `@skm/ccf-typegen` for generated types). The assemblies and namespaces are still `Ccf.*`. Everything targets `net10.0`.
+- Packages (MIT license): NuGet `Corinth.AspNetCore` on the server (it brings `Corinth.Core`), `Corinth.Client` for .NET callers, npm `@corinth/client` for browsers and Node 20+ (and `@corinth/typegen` for generated types). Namespaces match the package names (`using Corinth.AspNetCore;`; the core types are in `Corinth`). Everything targets `net10.0`.
 
 ## 2. Enable it
 
@@ -61,7 +61,15 @@ registry.Register(typeof(List<Order>), registry.HttpSchemaOptions);   // a type 
 
 - **Caches and CDNs must honour `Vary: Accept`.** CCF sends it on every response to a request that mentioned `application/vnd.ccf` and on JSON responses of CCF-capable endpoints. A cache that ignores `Vary` can serve CCF to a JSON client.
 - **Schema endpoint:** `Cache-Control: public, max-age=31536000, immutable` on hits; 404s are not cacheable. It must be reachable on the **same origin** as the API (clients refuse schemas that arrive after a cross-origin redirect).
-- **Compression:** CCF applies none (out of scope). Server-side response compression of `application/vnd.ccf` is possible but unmeasured; CCF already beats gzip JSON on size for suitable data.
+- **Compression:** the CCF format applies none (out of scope), but HTTP response compression works on it exactly as on JSON, and compressed CCF is 44–61 % of compressed JSON on repetitive data (78–84 % on mostly unique strings; `docs/BENCHMARKS.md`). ASP.NET Core's response compression does not include `application/vnd.ccf` by default; add it:
+
+  ```csharp
+  builder.Services.AddResponseCompression(o =>
+      o.MimeTypes = ResponseCompressionDefaults.MimeTypes.Append("application/vnd.ccf"));
+  app.UseResponseCompression();
+  ```
+
+  The parameter (`; features=d`) does not affect matching. Browsers and Node `fetch` decompress transparently; a .NET `HttpClient` needs `AutomaticDecompression` on its handler, as for compressed JSON. Compressing over HTTPS has the usual BREACH considerations (`EnableForHttps`); they are the same as for JSON.
 
 ## 7. Configuration reference
 
@@ -82,12 +90,12 @@ In code, `Limits` is an init-only object: `o.Limits = new CcfLimits { MaxRows = 
 ## 8. Clients
 
 - **.NET:** `await http.GetFromCcfAsync<List<Product>>("/products")`, or keep a `CcfClient` (see its README). Failures of CCF itself (corrupt payload, schema unavailable) are retried once as JSON for GET/HEAD and requests you mark idempotent.
-- **Browser / Node:** `createCcfClient({ baseUrl })`, with `IndexedDbSchemaCache` to persist schemas across page loads. `ccf-typegen` generates TypeScript types from a schema. int64 values beyond 2^53 throw `RangeError` unless you ask for `int64: "bigint"`.
+- **Browser / Node:** `createCcfClient({ baseUrl })`, with `IndexedDbSchemaCache` to persist schemas across page loads. `corinth-typegen` generates TypeScript types from a schema. int64 values beyond 2^53 throw `RangeError` unless you ask for `int64: "bigint"`.
 - Anything else keeps getting JSON.
 
 ## 9. Seeing CCF in OpenAPI and Scalar (optional, development)
 
-`SKM.Ccf.Scalar` makes CCF visible in your OpenAPI document and in the Scalar API reference:
+`Corinth.Scalar` makes CCF visible in your OpenAPI document and in the Scalar API reference:
 
 ```csharp
 builder.Services.AddOpenApi(o => o.AddCcf());

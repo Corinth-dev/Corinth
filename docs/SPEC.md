@@ -8,7 +8,7 @@ The key words MUST, MUST NOT, SHOULD and MAY are used as in RFC 2119.
 
 ## 1. Overview
 
-CCF (Columnar Compact Format) is a binary, column-oriented encoding for API responses. A payload carries **no field names**: it names a schema by a 4-byte id, and the client decodes the columns using that schema, which it fetches once and caches forever.
+CCF (Corinthian Columnar Format) is a binary, column-oriented encoding for API responses. A payload carries **no field names**: it names a schema by a 4-byte id, and the client decodes the columns using that schema, which it fetches once and caches forever.
 
 A payload is:
 

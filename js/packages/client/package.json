@@ -1,9 +1,9 @@
 {
-  "name": "@skm/ccf-client",
+  "name": "@corinth/client",
   "version": "0.1.0",
-  "description": "CCF (Columnar Compact Format) client for browsers and Node 20+",
+  "description": "Corinth: CCF (Corinthian Columnar Format) client for browsers and Node 20+",
   "type": "module",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "sideEffects": false,
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -30,12 +30,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/SamuraiKenshin/CCF.git",
+    "url": "git+https://github.com/SamuraiKenshin/Corinth.git",
     "directory": "js/packages/client"
   },
-  "homepage": "https://github.com/SamuraiKenshin/CCF#readme",
+  "homepage": "https://github.com/SamuraiKenshin/Corinth#readme",
   "keywords": [
     "ccf",
+    "corinth",
+    "corinthian-columnar-format",
     "columnar",
     "binary",
     "api",

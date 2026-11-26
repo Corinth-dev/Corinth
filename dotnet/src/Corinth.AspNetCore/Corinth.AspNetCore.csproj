@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Corinth.AspNetCore</PackageId>
+    <RootNamespace>Corinth.AspNetCore</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Description>Corinth. ASP.NET Core integration for CCF (Corinthian Columnar Format): output formatter, content negotiation, schema endpoint and metrics. JSON stays the default; clients opt in with Accept: application/vnd.ccf.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="..\Corinth.Core\Corinth.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Corinth.AspNetCore.Tests" />
+  </ItemGroup>
+</Project>

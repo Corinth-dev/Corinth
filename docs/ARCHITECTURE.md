@@ -35,11 +35,11 @@ flowchart LR
 
 | Package | Contents | Depends on |
 | --- | --- | --- |
-| `Ccf.Core` (.NET) | Schema model, canonicalizer, hasher, schema builder, encoder, decoder, limits, errors | Nothing outside the BCL |
-| `Ccf.AspNetCore` (.NET) | `AddCcf`, output formatter, `CcfResults`, schema endpoint, options | `Ccf.Core`, ASP.NET Core |
-| `Ccf.Scalar` (.NET, development tooling) | `AddCcf()` for the OpenAPI document (an `application/vnd.ccf` response per CCF-capable operation), `MapCcfViewer()` (POST `/ccf/decode` and the Scalar script, Development only), `WithCcfViewer()` for the Scalar options | `Ccf.AspNetCore`, `Microsoft.AspNetCore.OpenApi`, `Scalar.AspNetCore` (2.18.x) |
-| `Ccf.Client` (.NET) | `HttpClient` extensions, schema cache, JSON fallback | `Ccf.Core`, `System.Net.Http.Json`, `Microsoft.Extensions.Logging.Abstractions` |
-| `@skm/ccf-client` (npm) | Decoder, schema cache, `fetch` wrapper, TS type generator CLI | None at runtime |
+| `Corinth.Core` (.NET) | Schema model, canonicalizer, hasher, schema builder, encoder, decoder, limits, errors | Nothing outside the BCL |
+| `Corinth.AspNetCore` (.NET) | `AddCcf`, output formatter, `CcfResults`, schema endpoint, options | `Corinth.Core`, ASP.NET Core |
+| `Corinth.Scalar` (.NET, development tooling) | `AddCcf()` for the OpenAPI document (an `application/vnd.ccf` response per CCF-capable operation), `MapCcfViewer()` (POST `/ccf/decode` and the Scalar script, Development only), `WithCcfViewer()` for the Scalar options | `Corinth.AspNetCore`, `Microsoft.AspNetCore.OpenApi`, `Scalar.AspNetCore` (2.x, from 2.18.2) |
+| `Corinth.Client` (.NET) | `HttpClient` extensions, schema cache, JSON fallback | `Corinth.Core`, `System.Net.Http.Json`, `Microsoft.Extensions.Logging.Abstractions` |
+| `@corinth/client` (npm) | Decoder, schema cache, `fetch` wrapper, TS type generator CLI | None at runtime |
 
 ## 3. Server: ASP.NET Core integration
 
@@ -161,7 +161,7 @@ If any reachable member is unsupported, the whole response type is unsupported a
 4. Decode. On a CCF format error or a failed schema fetch (HTTP error, network error, unknown id, hash mismatch, invalid schema) → log it and **repeat the original request once with `Accept: application/json`**. Only requests that are safe to repeat (GET, HEAD, or explicitly marked idempotent; never a streamed body) are retried; otherwise the error surfaces. A failed fetch is not remembered: the next request tries again. Errors that are not CCF failures are never retried: an HTTP error status, a usage error such as a target type that cannot receive the schema (.NET `InvalidOperationException`), or the `RangeError` of `int64: "number"`.
 5. Schema cache: in memory by default; pluggable for persistent storage (IndexedDB in browsers, disk on .NET). Entries never expire (the id is a content hash). A failing cache never fails a request.
 
-### 6.2 .NET client (`Ccf.Client`)
+### 6.2 .NET client (`Corinth.Client`)
 
 - `CcfClient(HttpClient, CcfClientOptions?)` holds the schema cache and the single-flight map; `client.GetAsync<T>(uri, ct)` and `client.SendAsync<T>(HttpRequestMessage, ct)` (retry only for GET/HEAD or when `CcfClientOptions.IsIdempotent` says so; the request is captured first so it can be sent again).
 - `HttpClient.GetFromCcfAsync<T>(string uri, CancellationToken)` mirrors `GetFromJsonAsync<T>` and uses one default `CcfClient` per `HttpClient`; create a `CcfClient` for custom options.
@@ -170,14 +170,14 @@ If any reachable member is unsupported, the whole response type is unsupported a
 - Decodes into `T` by matching schema field names to properties with the same naming rules as the server (§5.2). Schema fields with no matching property are skipped (block length); properties with no matching field keep their default. Matching is by exact JSON name first, then case-insensitively. Narrowing into a smaller CLR type is range-checked (`ValueOutOfRange`). A CLR type that cannot receive the schema (incompatible property type, abstract type, several rows into a single object) raises `InvalidOperationException`: a usage error, not a format error. Datetimes outside the .NET `DateTime` range (years 1–9999) are rejected by the .NET decoder with `ValueOutOfRange`.
 - Decimals decode exactly to `decimal`; datetimes to `DateTimeOffset` (offset 0) or `DateTime` (Kind Utc).
 
-### 6.3 TypeScript client (`@skm/ccf-client`)
+### 6.3 TypeScript client (`@corinth/client`)
 
 - Runs in browsers and Node 20+; ES modules; zero runtime dependencies; uses `DataView`, `TextDecoder("utf-8", { fatal: true, ignoreBOM: true })` (the BOM is data, not a marker).
 - `createCcfClient({ baseUrl?, fetch?, schemaCache?, features?, schemaPathPrefix?, int64?, decimal?, limits?, isIdempotent?, log? })` → `client.get<T>(path, init?)`, `client.request<T>(path, { method, body, idempotent, … })`, `client.getSchema(id, origin)`. Lower level: `decode(bytes, schema, options)` (synchronous), `readSchemaId(bytes)`, `parseSchema(text)` (**async**: it hashes with WebCrypto, falling back to a built-in pure-JS SHA-256 where `crypto.subtle` is unavailable, such as insecure browser origins), `verifySchema(id, text)`.
 - Schema caches implement `CcfSchemaCache { get(id), set(id, canonicalJson) }` (sync or async, storing the canonical text, which is re-verified when read): `MemorySchemaCache` (default) and `IndexedDbSchemaCache`.
 - Errors: `CcfFormatError` (same code strings as .NET), `CcfSchemaError` (invalid schema, SPEC §14.3), `CcfSchemaFetchError`, `CcfHttpError`.
 - Value mapping: int64/uint64 → `number` by default, throwing a `RangeError` if a value is beyond `Number.MAX_SAFE_INTEGER`; option `int64: "bigint"`. Decimal → `number` by default (may round for values beyond 2^53 or many digits); option `decimal: "string"` for exact values with `scale` digits. Datetime → `Date` (values outside the range of `Date`, ±8.64e15 ms, are `ValueOutOfRange`). Guid → lowercase string. Enum → member name string. `null` for absent values. A single-object payload decodes to an object, a table to an array of objects.
-- `ccf-typegen <schema file | - | URL> [-o out.ts] [--name Root] [--int64 number|bigint] [--decimal number|string]` reads a schema (a URL ending in an id is verified against it) and writes TypeScript interfaces: the root interface is named after the schema, nested objects become `<Parent><Field>` and object list elements `<Parent><Field>Item`; `--int64`/`--decimal` should match the client options.
+- `corinth-typegen <schema file | - | URL> [-o out.ts] [--name Root] [--int64 number|bigint] [--decimal number|string]` reads a schema (a URL ending in an id is verified against it) and writes TypeScript interfaces: the root interface is named after the schema, nested objects become `<Parent><Field>` and object list elements `<Parent><Field>Item`; `--int64`/`--decimal` should match the client options.
 
 ## 7. Flows
 
@@ -299,7 +299,7 @@ Consequences for rollout: opt in per endpoint, prefer endpoints with repetitive 
 ## 10. Operating and releasing
 
 - Enabling CCF on an API: `docs/GUIDE.md`. Metrics, dashboards and alerts: `docs/OBSERVABILITY.md`. Versioning and compatibility rules: `docs/VERSIONING.md`.
-- Packages (version 0.1.0, UNLICENSED, private feed, prepared but not published by this repository): NuGet `SKM.Ccf.Core`, `SKM.Ccf.AspNetCore`, `SKM.Ccf.Client`, `SKM.Ccf.Scalar` (assemblies and namespaces stay `Ccf.*`); npm `@skm/ccf-client` and `@skm/ccf-typegen` (the CLI command is `ccf-typegen`). The npm scope is lower case because npm rejects capitals in new package names. Symbol packages (`.snupkg`) carry Source Link; CI sets `ContinuousIntegrationBuild`.
+- Packages (version 0.1.0, MIT license, prepared but not published by this repository): NuGet `Corinth.Core`, `Corinth.AspNetCore`, `Corinth.Client`, `Corinth.Scalar` (assemblies and namespaces match: `Corinth`, `Corinth.AspNetCore`, `Corinth.Client`, `Corinth.Scalar`); npm `@corinth/client` and `@corinth/typegen` (the CLI command is `corinth-typegen`). Type names keep the format's name (`CcfEncoder`, `AddCcf`, `createCcfClient`), and runtime names stay `ccf` (configuration section and meter `Ccf`, `ccf.*` metrics, `x-ccf-*` headers, `/ccf/...` routes). The npm scope is lower case because npm rejects capitals in new package names. Symbol packages (`.snupkg`) carry Source Link; CI sets `ContinuousIntegrationBuild`.
 
 ## 11. Future
 

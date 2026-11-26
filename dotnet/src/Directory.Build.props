@@ -4,12 +4,12 @@
   <PropertyGroup>
     <VersionPrefix>0.1.0</VersionPrefix>
     <Authors>SamuraiKenshin</Authors>
-    <PackageProjectUrl>https://github.com/SamuraiKenshin/CCF</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/SamuraiKenshin/CCF</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/SamuraiKenshin/Corinth</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/SamuraiKenshin/Corinth</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageTags>ccf;columnar;binary;serialization;aspnetcore;api;json-alternative</PackageTags>
+    <PackageTags>corinth;ccf;corinthian-columnar-format;columnar;binary;serialization;aspnetcore;content-negotiation;api;json-alternative;typescript</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <EnablePackageValidation>true</EnablePackageValidation>
     <!-- Source Link ships with the .NET 8+ SDK: no package needed. ContinuousIntegrationBuild is set by CI. -->
     <PublishRepositoryUrl>true</PublishRepositoryUrl>

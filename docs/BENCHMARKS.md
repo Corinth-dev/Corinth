@@ -11,7 +11,7 @@ Measured 2026-10-20 on a 4-vCPU Intel Xeon 2.10 GHz Linux VM (shared cloud conta
 | unique-strings-5k | 5,000 | name, email and note almost always unique (worst case for dictionary mode) |
 | orders-5k | 5,000 | nullable customer object, 0–8 order lines (object list), optional tag list (scalar list) |
 
-Generated deterministically by `dotnet/benchmarks/Ccf.Benchmarks/Datasets.cs`. The `export` command writes every dataset in every encoding (JSON, gzip, brotli, CCF plain, CCF dictionary) to `bench-data/` (git-ignored) for the JavaScript runs.
+Generated deterministically by `dotnet/benchmarks/Corinth.Benchmarks/Datasets.cs`. The `export` command writes every dataset in every encoding (JSON, gzip, brotli, CCF plain, CCF dictionary) to `bench-data/` (git-ignored) for the JavaScript runs.
 
 ## Method
 
@@ -29,6 +29,17 @@ Generated deterministically by `dotnet/benchmarks/Ccf.Benchmarks/Datasets.cs`. T
 | orders-5k | 5,000 | 1,209,532 | 156,003 | 209,357 | 135,337 | 176,118 | 94,450 | 330,051 | 131,941 | 85 % | 11 % |
 
 JSON gzip -6 is `CompressionLevel.Optimal`; "brotli 4" is .NET's `Optimal`; brotli 11 is the maximum.
+
+**With HTTP compression on both sides.** The table above compares raw CCF with compressed JSON. A server that already compresses responses (`Content-Encoding`) can compress CCF too: the format itself stays uncompressed (SPEC), the transport does it, exactly as for JSON. Measured 2026-11-26 with the same `export` command (.NET 10.0.1, same datasets, byte-identical to the table above):
+
+| Dataset | JSON gzip -6 | CCF dict gzip -6 | ratio | JSON brotli 4 | CCF dict brotli 4 | ratio |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| products-500 | 6,558 | 3,749 | 57 % | 6,822 | 3,489 | 51 % |
+| products-5k | 64,197 | 32,000 | 50 % | 69,928 | 30,773 | 44 % |
+| unique-strings-5k | 170,385 | 143,123 | 84 % | 207,300 | 162,376 | 78 % |
+| orders-5k | 156,003 | 87,238 | 56 % | 135,337 | 83,056 | 61 % |
+
+Compressed CCF is 44–61 % of compressed JSON on the repetitive sets, and smaller even on the unique-string set where raw CCF loses. The decode tables below do not include decompression time for CCF.
 
 ## .NET decode (net10.0)
 
@@ -164,5 +175,6 @@ Things the numbers also show, not covered by the criteria:
 - **.NET encode** is faster than STJ source-gen on the product sets (0.70x–0.85x time) and about equal on orders (1.07x dictionary, 1.35x plain), far cheaper than JSON+gzip/brotli (3x–4x STJ).
 - **Allocations:** CCF decode allocates about the same as STJ (0.8x–1.3x).
 - `JSON.parse` in Chromium is faster than in Node 22 on these inputs; CCF's lead over `JSON.parse` is therefore smaller there.
+- **Browsers: compare against `JSON.parse`, not against `DecompressionStream`.** A browser undoes HTTP `Content-Encoding` in its network stack, off the main thread, before `fetch` returns the body; page code never runs `DecompressionStream` for a normal compressed JSON response. The "gzip JSON ÷ CCF dict" column therefore overstates what a browser page gains in decode time. The realistic browser comparison is the "JSON.parse ÷ CCF dict" column (Chromium 0.33x–1.85x): in browsers CCF's benefit is mainly fewer bytes on the wire and less server CPU for compression, with decode time about even on repetitive data. In Node and .NET clients, where decompression runs in the process, the gzip columns apply.
 
 The go/no-go judgement is the project owner's; see the report in the session.

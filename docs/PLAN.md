@@ -9,20 +9,20 @@ Work through the phases in order. Tick a box only when its work is done and its 
 /docs/                      SPEC.md, ARCHITECTURE.md, PLAN.md, DECISIONS.md
 /test-vectors/              golden vectors (read-only)
 /dotnet/
-  Ccf.sln
+  Corinth.sln
   Directory.Build.props     net10.0, nullable, warnings as errors, LangVersion latest
-  src/Ccf.Core/
-  src/Ccf.AspNetCore/
-  src/Ccf.Client/
-  tests/Ccf.Core.Tests/
-  tests/Ccf.AspNetCore.Tests/
-  tests/Ccf.Client.Tests/
-  samples/Ccf.SampleApi/
-  benchmarks/Ccf.Benchmarks/
+  src/Corinth.Core/
+  src/Corinth.AspNetCore/
+  src/Corinth.Client/
+  tests/Corinth.Core.Tests/
+  tests/Corinth.AspNetCore.Tests/
+  tests/Corinth.Client.Tests/
+  samples/Corinth.SampleApi/
+  benchmarks/Corinth.Benchmarks/
 /js/
   package.json              workspace root
-  packages/client/          @skm/ccf-client (src/, test/)
-  packages/typegen/         ccf-typegen CLI
+  packages/client/          @corinth/client (src/, test/)
+  packages/typegen/         corinth-typegen CLI
   bench/
 ```
 
@@ -38,11 +38,11 @@ Work through the phases in order. Tick a box only when its work is done and its 
 
 Conventions set up in phase 0:
 - `dotnet test` and `npm test` run everything except the conformance tests. Run those with `dotnet test --filter "Category=Conformance"` and `npm run test:conformance` (in `js/`).
-- Harness code reaches the implementation only through one seam: `ConformanceSubject` (.NET, `tests/Ccf.Core.Tests/Conformance/`) and `test/support/subject.ts` (JS). Each member throws `NotImplementedException` / `NotImplementedError` until wired up. Phase 1 / phase 3 replace the stubs and drop the default conformance exclusion (`VSTestTestCaseFilter` in `dotnet/Directory.Build.props`, `CCF_TESTS` default in `js/packages/client/vitest.config.ts`).
+- Harness code reaches the implementation only through one seam: `ConformanceSubject` (.NET, `tests/Corinth.Core.Tests/Conformance/`) and `test/support/subject.ts` (JS). Each member throws `NotImplementedException` / `NotImplementedError` until wired up. Phase 1 / phase 3 replace the stubs and drop the default conformance exclusion (`VSTestTestCaseFilter` in `dotnet/Directory.Build.props`, `CCF_TESTS` default in `js/packages/client/vitest.config.ts`).
 
 **Exit:** scaffold builds; all 15 vectors are discovered and fail with `NotImplementedException`; all other tests pass.
 
-## Phase 1 — `Ccf.Core` (.NET)
+## Phase 1 — `Corinth.Core` (.NET)
 
 Schema
 - [x] Schema model: `CcfSchema` (Name, Fields, Id as 4 bytes + hex string, CanonicalJson), `CcfField`, `CcfType`.
@@ -54,14 +54,14 @@ Schema
 Primitives
 - [x] uvarint read/write (shortest form, 10-byte max, overflow detection), zigzag, LSB-first bit packing.
 - [x] Unit tests for every example in SPEC §5, plus boundaries (0, 127, 128, 2⁶⁴−1, int64 min/max).
-- [x] Wire `ConformanceSubject` to `Ccf.Core`, replace the stubs, and remove the default conformance exclusion.
+- [x] Wire `ConformanceSubject` to `Corinth.Core`, replace the stubs, and remove the default conformance exclusion.
 
 Decoder
 - [x] `CcfReader` over `ReadOnlySpan<byte>` with bounds checks raising `CcfFormatException(CcfErrorCode)` for every code in SPEC §11. (`CcfReader` is an internal `ref struct`; the public entry points are `CcfDecoder.DecodeValue`, `Decode<T>` and `PeekSchemaId`.)
 - [x] Untyped decode to a value tree (for conformance tests and tools).
 - [x] Typed decode to `T` (property matching per ARCHITECTURE §6.2), with accessors cached per (schema, type).
 - [x] All valid vectors decode to their expected JSON; all invalid vectors throw exactly `expectedError`.
-- [x] One unit test per SPEC §14 clarification (rules 1–7; rule 8 added in phase 3) in `Ccf.Core.Tests`; no files added to `test-vectors/`.
+- [x] One unit test per SPEC §14 clarification (rules 1–7; rule 8 added in phase 3) in `Corinth.Core.Tests`; no files added to `test-vectors/`.
 
 Schema builder
 - [x] `CcfSchemaBuilder.TryBuild(Type, CcfSchemaOptions, out CcfSchema, out string reason)` per ARCHITECTURE §5 (mapping, names, order, attributes, nullability, unsupported list).
@@ -82,7 +82,7 @@ Hardening
 
 _Exit check passed (2026-10-20): all 15 vectors pass both directions on net8.0 and net10.0. Fuzz run of 1 hour (08:50–09:50 UTC, net10.0 Release, 3 threads, seed 20261020): 728,529,220 mutated payloads, 20,191,430 decoded successfully, the rest raised only `CcfFormatException` (all 16 codes seen except none missing from the histogram); no other exception, no hang (slowest decode 404 ms), peak allocation 148,744 bytes for any single decode._
 
-## Phase 2 — `Ccf.AspNetCore`
+## Phase 2 — `Corinth.AspNetCore`
 
 - [x] `CcfOptions` (DictionaryThreshold, DefaultDecimalScale, Limits, SchemaPathPrefix, AllowQueryOverride) bound from configuration section `Ccf`.
 - [x] `ISchemaRegistry` (lazy registration, `Register<T>()`, id collision check, thread-safe).
@@ -93,14 +93,14 @@ _Exit check passed (2026-10-20): all 15 vectors pass both directions on net8.0 a
 - [x] `MapCcfSchemas()` with immutable caching and 404.
 - [x] Logging and the `Ccf` meter (ARCHITECTURE §3.5).
 - [x] Development-only `?ccf=d` override (off unless `AllowQueryOverride` and the environment is Development).
-- [x] `samples/Ccf.SampleApi`: `/products` returning the 500 sample rows (from `test-vectors/v01-products-plain.expected.json`), `/orders`, `/products/{id}`, plus one unsupported type to show fallback.
+- [x] `samples/Corinth.SampleApi`: `/products` returning the 500 sample rows (from `test-vectors/v01-products-plain.expected.json`), `/orders`, `/products/{id}`, plus one unsupported type to show fallback.
 - [x] Integration tests with `WebApplicationFactory` (plus one real-Kestrel smoke test): JSON by default; plain CCF for `Accept: application/vnd.ccf` (bytes equal `v01`); dictionary CCF for `features=d` (bytes equal `v02`); single object (`v05`); fallback for unsupported type; schema endpoint 200/404 and headers.
 
 **Exit:** the sample API serves JSON, plain CCF and dictionary CCF from one endpoint, byte-identical to the vectors.
 
 _Exit check passed (2026-10-20): `/products` serves JSON, plain CCF (bytes equal `v01`) and dictionary CCF (bytes equal `v02`); `/products/1001` equals `v05`, `/products/empty` `v06`, `/orders` `v04`, `/all-types` `v03`; minimal APIs return the same bytes. 199 AspNetCore tests pass on net8.0 and net10.0; re-run after the owner's phase 2 decisions (new Accept rule, naming per path, single enumeration, Vary)._
 
-## Phase 3 — `Ccf.Client` (.NET) and `@skm/ccf-client` (TypeScript)
+## Phase 3 — `Corinth.Client` (.NET) and `@corinth/client` (TypeScript)
 
 .NET
 - [x] `GetFromCcfAsync<T>` with Accept header, schema fetch + hash check + cache, single-flight per schema id, JSON retry rules (ARCHITECTURE §6.1).
@@ -115,7 +115,7 @@ TypeScript
 - [x] Decoder for all types, options `int64` and `decimal` (ARCHITECTURE §6.3).
 - [x] All 15 vectors pass (decode and errors) in Node; one browser run (Playwright or vitest browser mode). _Browser run: `npm run test:browser` drives a real Chromium through `playwright-core` (decoder over every vector, client flow, real IndexedDB cache across a page reload, pure-JS SHA-256 with `crypto.subtle` removed, corrupted-payload fallback)._
 - [x] `createCcfClient` with schema cache, single-flight, JSON retry; pluggable cache interface; an IndexedDB cache implementation.
-- [x] `ccf-typegen`: schema JSON or URL → `.ts` interfaces; snapshot tests for the 3 vector schemas.
+- [x] `corinth-typegen`: schema JSON or URL → `.ts` interfaces; snapshot tests for the 3 vector schemas.
 - [x] Package builds to ESM + `.d.ts`; zero runtime dependencies.
 
 **Exit:** both clients decode every vector identically; end-to-end test from the TS client against the sample API passes.
@@ -135,12 +135,16 @@ _Exit check passed (2026-10-20): .NET and TypeScript decoders both pass all 15 v
 
 ## Phase 5 — Rollout readiness
 
-- [x] Package metadata, READMEs and XML docs for the three NuGet packages and the npm packages. _Version 0.1.0 (SemVer, one number for all packages); NuGet ids `SKM.Ccf.*`, npm `@skm/ccf-client` and `@skm/ccf-typegen`; LICENSE, Source Link symbols; `dotnet pack` and `npm pack` run in CI; throwaway consumer projects installed the .nupkg files and the tarballs and decoded a golden vector. Nothing is published (the owner publishes)._
+- [x] Package metadata, READMEs and XML docs for the three NuGet packages and the npm packages. _Version 0.1.0 (SemVer, one number for all packages); NuGet ids `Corinth.*`, npm `@corinth/client` and `@corinth/typegen`; LICENSE, Source Link symbols; `dotnet pack` and `npm pack` run in CI; throwaway consumer projects installed the .nupkg files and the tarballs and decoded a golden vector. Nothing is published (the owner publishes)._
 - [x] Opt-in guide: enabling CCF on selected endpoints, pre-registering schemas, configuration reference. _`docs/GUIDE.md`._
 - [x] Dashboards/queries for the `Ccf` meter: share of responses served as CCF, fallbacks, encode failures, bytes saved. _`docs/OBSERVABILITY.md` (PromQL panels and alerts); `ccf.responses{format=json}` added so the share of all responses can be computed; bytes saved is an estimate._
 - [x] Browser tests on WebKit and Firefox as well as Chromium (the pinned `playwright-core@1.56.1`; CI installs the matching browsers). _The test takes `CCF_BROWSER=chromium|firefox|webkit` and CI runs a three-engine matrix; Chromium passed locally; Firefox and WebKit could not be downloaded in the sandbox, so CI was their first run: PR #3, run 39439255203, `js-browser (chromium)`, `(firefox)` and `(webkit)` all passed (5 tests each)._
 - [x] Versioning policy: format version stays 1; packages use SemVer; new features add letters, never change existing encodings. _`docs/VERSIONING.md`._
-- [x] `SKM.Ccf.Scalar` (owner request): OpenAPI and Scalar tooling so projects do not copy the sample's code: `AddCcf()` for OpenAPI, `MapCcfViewer()` (decode endpoint and script, Development only unless enabled) and `WithCcfViewer()` for Scalar, with the "CCF decode" toggle (off by default, applies to the next request). Approved dependencies: `Scalar.AspNetCore` (pinned to 2.18.x) and `Microsoft.AspNetCore.OpenApi`. Tests: .NET (decode, environments, conventions, OpenAPI) and a Chromium test of the toggle in the real Scalar UI (`js-e2e`).
+- [x] `Corinth.Scalar` (owner request): OpenAPI and Scalar tooling so projects do not copy the sample's code: `AddCcf()` for OpenAPI, `MapCcfViewer()` (decode endpoint and script, Development only unless enabled) and `WithCcfViewer()` for Scalar, with the "CCF decode" toggle (off by default, applies to the next request). Approved dependencies: `Scalar.AspNetCore` (2.18.x at first; widened to `[2.18.2,3.0.0)` on 2026-11-26 after the .NET tests and the Chromium toggle test passed on 2.21.0) and `Microsoft.AspNetCore.OpenApi`. Tests: .NET (decode, environments, conventions, OpenAPI) and a Chromium test of the toggle in the real Scalar UI (`js-e2e`).
+
+- [x] Public release preparation (owner request, 2026-11-26): MIT license (was internal/UNLICENSED); a real root `README.md` (pitch, quick start, honest numbers, when not to use it, comparison with other formats); package READMEs and tags spell out the format name and that it is unrelated to Microsoft's Confidential Consortium Framework (superseded by the Corinth rename below); `Scalar.AspNetCore` range widened to `[2.18.2,3.0.0)` (tests and the Chromium toggle test pass on 2.21.0); the `export` command also measures CCF with HTTP gzip/brotli (44–61 % of compressed JSON on repetitive data); `docs/BENCHMARKS.md` explains that browsers decompress natively, so the browser comparison is against `JSON.parse`; `docs/GUIDE.md` shows how to enable response compression for CCF (checked against a running app and `GetFromCcfAsync`).
+
+- [x] Rename to **Corinth** (owner decision, DECISIONS #16, 2026-11-26): NuGet `Corinth.Core`, `Corinth.AspNetCore`, `Corinth.Client`, `Corinth.Scalar` (were `SKM.Ccf.*`); npm `@corinth/client`, `@corinth/typegen` (were `@skm/ccf-*`), CLI `corinth-typegen`; assemblies, namespaces (`Ccf` → `Corinth`), project folders and `Corinth.sln`; repository URL `github.com/SamuraiKenshin/Corinth` (the owner renames the GitHub repository); CCF expanded as "Corinthian Columnar Format" in SPEC §1 (wording only, approved by the owner). Type names and runtime names unchanged. All tests, end-to-end tests and `dotnet pack`/`npm pack` re-run after the rename.
 
 **Exit:** packages publishable; rollout guide reviewed by the project owner.
 
@@ -157,21 +161,21 @@ _None open._
 
 ### Resolved by the project owner after phase 5
 
-1. **License.** The code is INTERNAL: stays UNLICENSED, published to a private feed only. A `LICENSE` file at the repository root says so (copied into each npm package, checked by CI; packed into each NuGet package as `PackageLicenseFile`); npm `license` is `UNLICENSED`. The repository publishes nothing: the owner publishes the prepared packages.
-2. **Package ids.** NuGet `SKM.Ccf.Core`, `SKM.Ccf.AspNetCore`, `SKM.Ccf.Client` (assemblies and namespaces stay `Ccf.*`); author `SamuraiKenshin`. npm: the requested `@SKM/ccf-client` and `@SKM/ccf-typegen` are **invalid** (npm rejects capital letters in new package names; checked with npm's own validator), so the packages are `@skm/ccf-client` and `@skm/ccf-typegen`. **Scope confirmed by the owner.** The CLI command is still `ccf-typegen`.
+1. **License.** ~~INTERNAL, UNLICENSED, private feed only.~~ Changed by the owner on 2026-11-26: **MIT**, for a public release on nuget.org and npmjs.com. The `LICENSE` file at the repository root is copied into each npm package (checked by CI); NuGet packages declare `PackageLicenseExpression` `MIT`; npm `license` is `MIT`. The repository still publishes nothing: the owner publishes the prepared packages.
+2. **Package ids.** Originally NuGet `SKM.Ccf.*` (namespaces `Ccf.*`) and npm `@skm/ccf-client`, `@skm/ccf-typegen` (the requested `@SKM/...` is invalid: npm rejects capital letters in new package names); author `SamuraiKenshin`. **Renamed to Corinth by the owner on 2026-11-26** (phase 5 above; DECISIONS #16).
 3. **Source Link** with the SDK built-in support (no package): `PublishRepositoryUrl`, `EmbedUntrackedSources`, `IncludeSymbols`, `SymbolPackageFormat=snupkg`; `ContinuousIntegrationBuild=true` set for all CI jobs. Checked: the pdb in the `.snupkg` carries the Source Link mapping to the repository.
 4. **Metrics.** `ccf.responses{format=json}` added for JSON responses of CCF-capable endpoints (MVC and minimal APIs; each response counted once, a fallback only as `json-fallback`), tests included. No JSON-size counter: "bytes saved" is documented as an estimate from the ratios in `docs/BENCHMARKS.md`.
 5. **Enums mirror System.Text.Json.** String-written enums (global converter, `[JsonConverter]` on the property or the type) are CCF enums with the names STJ writes; all others are integer columns with the underlying value (`int32` for `int`-backed enums; other underlying types map to their matching integer type). `[Flags]` written as strings and custom converters stay JSON-only. Changed behaviour: an enum with no string converter used to be an enum column and is now an integer column, so applications without `JsonStringEnumConverter` get new schema ids for such types.
 
 ### Resolved by the project owner after phase 3
 
-1. **Logging.** `Ccf.Client` depends on `Microsoft.Extensions.Logging.Abstractions` (approved) and takes an optional `ILogger<CcfClient>` (from DI when registered, `NullLogger` otherwise). The `Log` callback is gone; the TS client keeps its `log` option.
+1. **Logging.** `Corinth.Client` depends on `Microsoft.Extensions.Logging.Abstractions` (approved) and takes an optional `ILogger<CcfClient>` (from DI when registered, `NullLogger` otherwise). The `Log` callback is gone; the TS client keeps its `log` option.
 2. **`playwright-core` is pinned** to exactly `1.56.1`; CI installs browsers matching the pinned version. Follow-up in phase 5: run the browser tests on WebKit and Firefox too.
 3. **Datetime range** is now SPEC §14.8: decoders MAY reject values outside the platform's range with `ValueOutOfRange` but must accept 0001-01-01 to 9999-12-31 UTC (a test in each implementation covers both ends).
 4. **Client behaviour**, documented in both client READMEs: `204 No Content` and an empty body give `null`; only a CCF format error or an unverifiable schema triggers the JSON retry, only for requests safe to repeat; HTTP error statuses and usage errors surface unchanged; the TS `int64: "number"` `RangeError` beyond 2^53 is intentional (JSON would silently lose precision) and is never retried.
 5. **End-to-end CI job is required** on pull requests: `js-e2e` runs on every PR, and an aggregate `required` job gives one check name to mark as required in branch protection (a repository setting that must be switched on by an admin; it cannot be done from the workflow). The command is in CLAUDE.md.
 
-Kept as decided earlier in phase 3: TS decimals default to `number` (`decimal: "string"` is exact); schema verification is strict (hash and canonical form, no cross-origin redirects, persistent entries re-verified); `ccf-typegen` depends on `@skm/ccf-client`; the end-to-end test needs the .NET SDK and is a separate script and CI job; no on-disk `ICcfSchemaCache` ships.
+Kept as decided earlier in phase 3: TS decimals default to `number` (`decimal: "string"` is exact); schema verification is strict (hash and canonical form, no cross-origin redirects, persistent entries re-verified); `corinth-typegen` depends on `@corinth/client`; the end-to-end test needs the .NET SDK and is a separate script and CI job; no on-disk `ICcfSchemaCache` ships.
 
 ### Resolved by the project owner after phase 2
 

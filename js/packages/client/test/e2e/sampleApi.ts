@@ -18,7 +18,7 @@ export interface RunningSample {
 export async function startSample(): Promise<RunningSample> {
   const dll =
     process.env["CCF_SAMPLE_DLL"] ??
-    ["Release", "Debug"].map((c) => resolve(dotnetDir, `samples/Ccf.SampleApi/bin/${c}/net10.0/Ccf.SampleApi.dll`)).find(existsSync) ??
+    ["Release", "Debug"].map((c) => resolve(dotnetDir, `samples/Corinth.SampleApi/bin/${c}/net10.0/Corinth.SampleApi.dll`)).find(existsSync) ??
     build();
 
   const child: ChildProcess = spawn("dotnet", [dll], {
@@ -55,6 +55,6 @@ export async function startSample(): Promise<RunningSample> {
 }
 
 function build(): string {
-  execFileSync("dotnet", ["build", "-c", "Release", "samples/Ccf.SampleApi", "-f", "net10.0"], { cwd: dotnetDir, stdio: "inherit" });
-  return resolve(dotnetDir, "samples/Ccf.SampleApi/bin/Release/net10.0/Ccf.SampleApi.dll");
+  execFileSync("dotnet", ["build", "-c", "Release", "samples/Corinth.SampleApi", "-f", "net10.0"], { cwd: dotnetDir, stdio: "inherit" });
+  return resolve(dotnetDir, "samples/Corinth.SampleApi/bin/Release/net10.0/Corinth.SampleApi.dll");
 }
