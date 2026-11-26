@@ -1,6 +1,6 @@
 # Corinth.Scalar
 
-Development tooling that makes [CCF (Corinthian Columnar Format)](https://github.com/SamuraiKenshin/Corinth) visible in the OpenAPI document and in the [Scalar](https://scalar.com) API reference, so nobody has to write this per project.
+Development tooling that makes [CCF (Corinthian Columnar Format)](https://github.com/Corinth-dev/Corinth) visible in the OpenAPI document and in the [Scalar](https://scalar.com) API reference, so nobody has to write this per project.
 
 ```csharp
 builder.Services.AddCcf();
